@@ -72,6 +72,69 @@ unsigned long long UsageMap::map(unsigned long long source) const {
     return source;
 }
 
+bool hasDuplicate(std::vector<Range>& seedsRange) {
+    std::set<unsigned long long> locations;
+    for (auto& seedRange : seedsRange) {
+        if (locations.find(seedRange.location) != locations.end()) {
+            return true;
+        }
+        locations.insert(seedRange.location);
+    }
+    return false;
+}
+
+bool hasOverlaps(std::vector<Range>& seedsRange) {
+    for (size_t i = 0; i < seedsRange.size(); ++i) {
+        for (size_t j = i + 1; j < seedsRange.size(); ++j) {
+            if (seedsRange[i].location < seedsRange[j].location) {
+                if (seedsRange[i].end() > seedsRange[j].location) {
+                    std::cout << "Overlap: " << seedsRange[i].location << " " << seedsRange[i].end() << " " << seedsRange[j].location << " " << seedsRange[j].end() << std::endl;
+                    return true;
+                }
+            } else {
+                if (seedsRange[j].end() > seedsRange[i].location) {
+                    std::cout << "Overlap: " << seedsRange[i].location << " " << seedsRange[i].end() << " " << seedsRange[j].location << " " << seedsRange[j].end() << std::endl;
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool hasOverlaps(UsageMap& usageMap) {
+    const auto& seedsRange = usageMap.maps;
+
+    for (size_t i = 0; i < seedsRange.size(); ++i) {
+        for (size_t j = i + 1; j < seedsRange.size(); ++j) {
+            if (seedsRange[i].source < seedsRange[j].source) {
+                if (seedsRange[i].source + seedsRange[i].length > seedsRange[j].source) {
+                    std::cout << "Overlap: " << seedsRange[i].source << " " << seedsRange[i].source + seedsRange[i].length << " " << seedsRange[j].source << " " << seedsRange[j].source + seedsRange[j].length << std::endl;
+                    return true;
+                }
+            } else {
+                if (seedsRange[j].source + seedsRange[j].length > seedsRange[i].source) {
+                    std::cout << "Overlap: " << seedsRange[i].source << " " << seedsRange[i].source + seedsRange[i].length << " " << seedsRange[j].source << " " << seedsRange[j].source + seedsRange[j].length << std::endl;
+                    return true;
+                }
+            }
+
+            if (seedsRange[i].destination < seedsRange[j].destination) {
+                if (seedsRange[i].destination + seedsRange[i].length > seedsRange[j].destination) {
+                    std::cout << "Overlap: " << seedsRange[i].destination << " " << seedsRange[i].destination + seedsRange[i].length << " " << seedsRange[j].destination << " " << seedsRange[j].destination + seedsRange[j].length << std::endl;
+                    return true;
+                }
+            } else {
+                if (seedsRange[j].destination + seedsRange[j].length > seedsRange[i].destination) {
+                    std::cout << "Overlap: " << seedsRange[i].destination << " " << seedsRange[i].destination + seedsRange[i].length << " " << seedsRange[j].destination << " " << seedsRange[j].destination + seedsRange[j].length << std::endl;
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 void transform(std::vector<Range>& seedsRanges, UsageMap& usageMap) {
     std::vector<Range> newSeedsRanges;
     for (auto& map : usageMap.maps) {
@@ -79,21 +142,10 @@ void transform(std::vector<Range>& seedsRanges, UsageMap& usageMap) {
             // Case 1 - Seed start before, ends inside
             if (seedsRanges[i].isBeginningBefore(map) && seedsRanges[i].isEndInside(map)) {
                 Range newRange;
-                newRange.location = map.destination + (map.source - seedsRanges[i].location);
+                newRange.location = map.destination;
                 newRange.length = seedsRanges[i].length - (map.source - seedsRanges[i].location);
                 newSeedsRanges.push_back(newRange);
-
-                if (newRange.length == 0) {
-                    int k;
-                    k = 2;
-                }
-
                 seedsRanges[i].length = map.source - seedsRanges[i].location;
-                if (seedsRanges[i].length == 0) {
-                    int k;
-                    k = 2;
-                }
-
             }
             // Case 2 - Seed start before, ends after
             else if (seedsRanges[i].isBeginningBefore(map) && seedsRanges[i].isEndAfter(map)) {
@@ -101,11 +153,6 @@ void transform(std::vector<Range>& seedsRanges, UsageMap& usageMap) {
                 newRange.location = map.destination;
                 newRange.length = map.length;
                 newSeedsRanges.push_back(newRange);
-
-                if (newRange.length == 0) {
-                    int k;
-                    k = 2;
-                }
 
                 // Now we need to figure out the part after
                 Range newRangeAfter;
@@ -118,14 +165,14 @@ void transform(std::vector<Range>& seedsRanges, UsageMap& usageMap) {
 
                 // And the seed before is reduced
                 seedsRanges[i].length = map.source - seedsRanges[i].location;
-                if (seedsRanges[i].length == 0) {
-                    int k;
-                    k = 2;
-                }
             }
             // Case 3 - Seed starts inside, ends inside
             else if (seedsRanges[i].isBeginningInside(map) && seedsRanges[i].isEndInside(map)) {
-                seedsRanges[i].location = map.destination + (seedsRanges[i].location - map.source);
+                Range newRange;
+                newRange.location = map.destination + (seedsRanges[i].location - map.source);
+                newRange.length = seedsRanges[i].length;
+                newSeedsRanges.push_back(newRange);
+                seedsRanges[i].length = 0;
             }
             // Case 4 - Seeds start inside, ends after
             else if (seedsRanges[i].isBeginningInside(map) && seedsRanges[i].isEndAfter(map)) {
@@ -134,16 +181,9 @@ void transform(std::vector<Range>& seedsRanges, UsageMap& usageMap) {
                 newRange.length = map.source + map.length - seedsRanges[i].location;
                 newSeedsRanges.push_back(newRange);
 
-                if (newRange.length == 0) {
-                    int k;
-                    k = 2;
-                }
-
                 unsigned long long newLocation = map.source + map.length;
                 seedsRanges[i].length = seedsRanges[i].location + seedsRanges[i].length - newLocation;
                 seedsRanges[i].location = newLocation;
-
-
             }
         }
     }
@@ -181,7 +221,7 @@ void test1() {
         if (rangeSeeds[1].location != 30 || rangeSeeds[1].length != 5) {
             std::cout << "Test 1 failed" << std::endl;
         }
-        else if (rangeSeeds[0].location != 1005 || rangeSeeds[0].length != 15) {
+        else if (rangeSeeds[0].location != 1000 || rangeSeeds[0].length != 15) {
             std::cout << "Test 1 failed" << std::endl;
         }
         else {
@@ -209,10 +249,10 @@ void test2() {
     if (rangeSeeds.size() != 3) {
         std::cout << "Test 2 failed" << std::endl;
     } else {
-        if (rangeSeeds[2].location != 30 || rangeSeeds[2].length != 5) {
+        if (rangeSeeds[1].location != 30 || rangeSeeds[1].length != 5) {
             std::cout << "Test 2 failed" << std::endl;
         }
-        else if (rangeSeeds[1].location != 135 || rangeSeeds[1].length != 45) {
+        else if (rangeSeeds[2].location != 135 || rangeSeeds[2].length != 45) {
             std::cout << "Test 2 failed" << std::endl;
         } else if (rangeSeeds[0].location != 1000 || rangeSeeds[0].length != 100) {
             std::cout << "Test 2 failed" << std::endl;
@@ -667,7 +707,7 @@ int first() {
         allUsages[6].maps = humidityToLocationMaps;
 
         // now we have all the maps, we can start with the seeds
-        unsigned long smallest = UINT_MAX;
+        unsigned long long smallest = ULONG_MAX;
         for (auto& seed : seeds) {
             unsigned long long location = seed;
             for (int i = 0; i < 7; i++) {
