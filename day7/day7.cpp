@@ -140,11 +140,11 @@ struct HandBidJoker {
             if (type == Type::HighCard) {
                 type = Type::OnePair;
             } else if (type == Type::OnePair) {
-                type = Type::TwoPair;
+                type = Type::ThreeOfAKind;
             } else if (type == Type::TwoPair) {
                 type = Type::FullHouse;
             } else if (type == Type::ThreeOfAKind) {
-                type = Type::FullHouse;
+                type = Type::FourOfAKind;
             } else if (type == Type::FourOfAKind) {
                 type = Type::FiveOfAKind;
             }
@@ -152,7 +152,7 @@ struct HandBidJoker {
             if (type == Type::HighCard) {
                 type = Type::ThreeOfAKind;
             } else if (type == Type::OnePair) {
-                type = Type::FullHouse;
+                type = Type::FourOfAKind;
             } else if (type == Type::ThreeOfAKind) {
                 type = Type::FiveOfAKind;
             }
