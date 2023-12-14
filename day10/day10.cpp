@@ -270,15 +270,7 @@ int handleLoop(std::vector<std::string> maze, std::set<Point> visited) {
         }
     }
 
-    // now everything that is still 'i' is enclosed by the loop
     int total = 0;
-    for (int j = 0; j < maze.size(); ++j) {
-        for (int i = 0; i < maze[j].size(); ++i) {
-            if (maze[j][i] == '.') {
-                total++;
-            }
-        }
-    }
 
     return total;
 }
