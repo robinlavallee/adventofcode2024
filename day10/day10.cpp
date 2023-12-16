@@ -226,53 +226,84 @@ int first() {
     return 0;
 }
 
-void floodFill(std::vector<std::string>& maze, std::list<Point> pointsToVisit) {
-    while (!pointsToVisit.empty()) {
-        Point current = pointsToVisit.front();
-        pointsToVisit.pop_front();
+int handleLoop(std::vector<std::string> maze, std::set<Point> loopMembers) {
+    // We will expand the maze and turn each tile into a 2x2 tile so that we can reason about what is inside and what is outside
 
-        if (current.x < 0 || current.y < 0 || current.y >= maze.size() || current.x >= maze[current.y].size()) {
-            continue;
-        }
+    std::vector<std::string> expandedMaze;
+    expandedMaze.resize(maze.size() * 2);
 
-        if (maze[current.y][current.x] == '.') {
-            maze[current.y][current.x] = 'O';
-            pointsToVisit.push_back({ current.x - 1, current.y });
-            pointsToVisit.push_back({ current.x + 1, current.y });
-            pointsToVisit.push_back({ current.x, current.y - 1 });
-            pointsToVisit.push_back({ current.x, current.y + 1 });
-        }
-    }
-}
+    int numInside = 0;
+    int numCols = maze[0].size();
+    for (int j = 0; j < maze.size(); j++) {
+        for (int i = 0; i < maze[j].size(); i++) {
+            if (i == 0) {
+                expandedMaze[j*2].resize(numCols * 2);
+                expandedMaze[j*2+1].resize(numCols * 2);
+            }
 
-int handleLoop(std::vector<std::string> maze, std::set<Point> visited) {
-    // mark all the mazes visited point as '#' and everything else as '.', then your goal is to flood-fill everything that touches the boundaries as 'O'. Everything remaining
-    // are enclosed by the loops
-
-    for (int j = 0; j < maze.size(); ++j) {
-        for (int i = 0; i < maze[j].size(); ++i) {
-            if (visited.find({ i, j }) == visited.end()) {
-                maze[j][i] = '.';
+            if (i == 0 && j == 0) { // special case for starting point
+                expandedMaze[0][0] = 'O';
             } else {
-                maze[j][i] = '#';
+                if (i == 0) {
+                    expandedMaze[j*2][i*2] = expandedMaze[j*2-1][i*2];
+                } else {
+                    expandedMaze[j*2][i*2] = expandedMaze[j*2][i*2-1];
+                }
+            }
+
+            // now it depends on the type of the tile and if it's part of the loop
+            bool isMember = loopMembers.find({ i, j }) != loopMembers.end();
+
+            char opposite = expandedMaze[j*2][i*2] == 'O' ? 'I' : 'O';
+
+            if (!isMember) {
+                expandedMaze[j*2][i*2+1] = expandedMaze[j*2][i*2];
+                expandedMaze[j*2+1][i*2] = expandedMaze[j*2][i*2];
+                expandedMaze[j*2+1][i*2+1] = expandedMaze[j*2][i*2];
+
+                if (expandedMaze[j*2][i*2] == 'I') {
+                    numInside++;
+                }
+            } else {
+                // Let's look at the type
+                char pipeType = maze[j][i];
+                switch (pipeType) {
+                    case '-':
+                        expandedMaze[j*2][i*2+1] = expandedMaze[j*2][i*2];
+                        expandedMaze[j*2+1][i*2] = opposite;
+                        expandedMaze[j*2+1][i*2+1] = opposite;
+                    break;
+                    case '|':
+                        expandedMaze[j*2][i*2+1] = opposite;
+                        expandedMaze[j*2+1][i*2] = expandedMaze[j*2][i*2];
+                        expandedMaze[j*2+1][i*2+1] = opposite;
+                    break;
+                    case 'L':
+                        expandedMaze[j*2][i*2+1] = opposite;
+                        expandedMaze[j*2+1][i*2] = expandedMaze[j*2][i*2];;
+                        expandedMaze[j*2+1][i*2+1] = expandedMaze[j*2][i*2];
+                    break;
+                    case 'J':
+                        expandedMaze[j*2][i*2+1] = opposite;
+                        expandedMaze[j*2+1][i*2] = opposite;
+                        expandedMaze[j*2+1][i*2+1] = opposite;
+                    break;
+                    case '7':
+                        expandedMaze[j*2][i*2+1] = expandedMaze[j*2][i*2];
+                        expandedMaze[j*2+1][i*2] = opposite;
+                        expandedMaze[j*2+1][i*2+1] = expandedMaze[j*2][i*2];
+                    break;
+                    case 'F':
+                        expandedMaze[j*2][i*2+1] = expandedMaze[j*2][i*2];
+                        expandedMaze[j*2+1][i*2] = expandedMaze[j*2][i*2];
+                        expandedMaze[j*2+1][i*2+1] = opposite;
+                    break;
+                }
             }
         }
     }
 
-    // now go ahead and apply the painting algorithms from the sides
-    std::list<Point> pointsToVisit;
-    for (int j = 0; j < maze.size(); ++j) {
-        for (int i = 0; i < maze[j].size(); ++i) {
-            if (maze[j][i] == '.' && (i == 0 || i == maze[j].size() - 1 || j == 0 || j == maze.size() - 1)) {
-                pointsToVisit.push_back({ i, j });
-                floodFill(maze, pointsToVisit);
-            }
-        }
-    }
-
-    int total = 0;
-
-    return total;
+    return numInside;
 }
 
 int second() {
