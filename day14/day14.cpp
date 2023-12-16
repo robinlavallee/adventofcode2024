@@ -212,8 +212,6 @@ int second() {
 
         std::cout << total << std::endl;
 
-
-
         newfile.close();
     }
 
