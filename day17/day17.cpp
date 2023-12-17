@@ -19,17 +19,21 @@ struct Point {
     int y;
 };
 
-struct PointDirection {
-    Point point;
+struct DirectionCount {
     int direction = None;
     int count = 0;
-    int cost = 0;
+};
+
+struct PointDirection {
+     Point point;
+     DirectionCount dirCount;
+     int cost = 0;
 };
 
 
 int solve(std::vector<std::vector<int>> maze) {
-    std::vector<std::vector<std::list<PointDirection>>> visited;
-    std::map<Point, std::list<PointDirection>> toProcess;
+    std::vector<std::vector<std::map<DirectionCount, int>>> visited;
+    std::map<Point, std::map<DirectionCount, int>> toProcess;
 
     visited.resize(maze.size());
     for (int i = 0; i < maze.size(); i++) {
@@ -37,56 +41,56 @@ int solve(std::vector<std::vector<int>> maze) {
     }
 
     PointDirection start = { { 0, 0 }, None, 0 };
-    toProcess.insert({ { start.point.x, start.point.y }, { start } });
-    visited[start.point.y][start.point.x].push_back(start);
+    toProcess[start.point][start.dirCount] = 0;
+    visited[start.point.y][start.point.x][start.dirCount] = 0;
 
     while (!toProcess.empty()) {
-        auto candidate = *toProcess.begin()->second.begin();
+        auto pointCandidate = toProcess.begin();
         
-        int directions[4] = { Up, Down, Left, Right };
-        for (int direction : directions) {
-            PointDirection nextPoint = candidate;
-            if (direction == Up) {
-                nextPoint.point.y--;
-            } else if (direction == Down) {
-                nextPoint.point.y++;
-            } else if (direction == Left) {
-                nextPoint.point.x--;
-            } else if (direction == Right) {
-                nextPoint.point.x++;
+        const Point& currentPoint = pointCandidate->first;
+        for (auto it = pointCandidate->second.begin() ; it != pointCandidate->second.end(); ++it) {
+            const DirectionCount& currentDirectionCount = it->first;
+            const int& currentCost = it->second;
+
+            int directions[4] = { Up, Down, Left, Right };
+            for (int direction : directions) {
+                PointDirection nextDirectionCount = { currentPoint, currentDirectionCount, currentCost };
+                Point& nextPoint = nextDirectionCount.point;
+                if (direction == Up) {
+                    nextPoint.y--;
+                } else if (direction == Down) {
+                    nextPoint.y++;
+                } else if (direction == Left) {
+                    nextPoint.x--;
+                } else if (direction == Right) {
+                    nextPoint.x++;
+                }
+
+                if (nextPoint.x < 0 || nextPoint.x >= maze[0].size() || nextPoint.y < 0 || nextPoint.y >= maze.size()) {
+                    continue;
+                }
+
+                if (currentDirectionCount.direction == direction) {
+                    nextDirectionCount.dirCount.count++;
+                } else {
+                    nextDirectionCount.dirCount.direction = direction;
+                    nextDirectionCount.dirCount.count = 1;
+                }
+
+                if (nextDirectionCount.dirCount.count > 3) {
+                    continue;
+                }
+
+                nextDirectionCount.cost += maze[nextDirectionCount.point.y][nextDirectionCount.point.x];
+
+                auto visitedIt = visited[nextDirectionCount.point.y][nextDirectionCount.point.x].find(nextDirectionCount.dirCount);
+                if (visitedIt == visited[nextDirectionCount.point.y][nextDirectionCount.point.x].end()) {
+                    visited[nextDirectionCount.point.y][nextDirectionCount.point.x][nextDirectionCount.dirCount] = nextDirectionCount.cost;
+                    toProcess[nextDirectionCount.point][nextDirectionCount.dirCount] = nextDirectionCount.cost;
+                } else {
+                    // TODO
+                }
             }
-
-            if (nextPoint.direction == direction) {
-                nextPoint.count++;
-            } else {
-                nextPoint.direction = direction;
-                nextPoint.count = 1;
-            }
-
-            nextPoint.cost += maze[nextPoint.point.y][nextPoint.point.x];
-
-            if (nextPoint.point.x < 0 || nextPoint.point.x >= maze[0].size() || nextPoint.point.y < 0 || nextPoint.point.y >= maze.size()) {
-                continue;
-            }
-
-            if (nextPoint.count > 3) {
-                continue;
-            }
-
-            auto visitedDirectionIt = std::find_if(visited[nextPoint.point.y][nextPoint.point.x].begin(), visited[nextPoint.point.y][nextPoint.point.x].end(), [&nextPoint](const PointDirection& pd) {
-                return pd.direction == nextPoint.direction;
-            });
-
-            // different direction, just add it
-            if (visitedDirectionIt == visited[nextPoint.point.y][nextPoint.point.x].end()) {
-                visited[nextPoint.point.y][nextPoint.point.x].push_back(nextPoint);
-                toProcess[nextPoint.point].push_back(nextPoint);
-            } else {
-                // it depends on the cost and count
-                // TODO
-
-            }
-
         }
     }
 
