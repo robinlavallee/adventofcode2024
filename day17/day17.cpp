@@ -128,7 +128,7 @@ int solve(std::vector<std::vector<int>> maze) {
     std::vector<std::vector<std::map<int, std::list<CountCost>>>> visited;
     std::map<Point, std::map<DirectionCount, int>> toProcess;
 
-    std::map<Point, std::map<DirectionCount, Point>> previousPoint;
+    std::map<PointDirection, PointDirection> previousPoint;
 
     visited.resize(maze.size());
     for (int i = 0; i < maze.size(); i++) {
@@ -144,33 +144,33 @@ int solve(std::vector<std::vector<int>> maze) {
         
         // count total visited so far for stats
         // display everything in visited with the lowest cost rows by rows
-        for (auto& row : visited) {
-            for (auto& entry : row) {
-                int lowest = INT_MAX;
-                for (auto& elem : entry) {
-                    for (auto& cost : elem.second) {
-                        if (cost.cost < lowest) {
-                            lowest = cost.cost;
-                        }
-                    }
-                }
+        //for (auto& row : visited) {
+        //    for (auto& entry : row) {
+        //        int lowest = INT_MAX;
+        //        for (auto& elem : entry) {
+        //            for (auto& cost : elem.second) {
+        //                if (cost.cost < lowest) {
+        //                    lowest = cost.cost;
+        //                }
+        //            }
+        //        }
 
-                if (lowest == INT_MAX) {
-                    std::cout << "     ";
-                    continue;
-                } else {
-                    // align to 4 characters
-                    std::string lowestStr = std::to_string(lowest);
-                    while (lowestStr.size() < 4) {
-                        lowestStr = " " + lowestStr;
-                    }
-                    std::cout << lowestStr;
-                }
-            }
-            std::cout << std::endl;
-        }
+        //        if (lowest == INT_MAX) {
+        //            std::cout << "     ";
+        //            continue;
+        //        } else {
+        //            // align to 4 characters
+        //            std::string lowestStr = std::to_string(lowest);
+        //            while (lowestStr.size() < 4) {
+        //                lowestStr = " " + lowestStr;
+        //            }
+        //            std::cout << lowestStr;
+        //        }
+        //    }
+        //    std::cout << std::endl;
+        //}
 
-        std::cout << "============================" << std::endl;
+        //std::cout << "============================" << std::endl;
 
         const Point& currentPoint = pointCandidate->first;
         for (auto it = pointCandidate->second.begin() ; it != pointCandidate->second.end(); ++it) {
@@ -189,6 +189,17 @@ int solve(std::vector<std::vector<int>> maze) {
                     nextPoint.x--;
                 } else if (direction == Right) {
                     nextPoint.x++;
+                }
+
+                // disallow reverse
+                if (currentDirectionCount.direction == Up && direction == Down) {
+                    continue;
+                } else if (currentDirectionCount.direction == Down && direction == Up) {
+                    continue;
+                } else if (currentDirectionCount.direction == Left && direction == Right) {
+                    continue;
+                } else if (currentDirectionCount.direction == Right && direction == Left) {
+                    continue;
                 }
 
                 if (nextPoint.x < 0 || nextPoint.x >= maze[0].size() || nextPoint.y < 0 || nextPoint.y >= maze.size()) {
@@ -215,7 +226,7 @@ int solve(std::vector<std::vector<int>> maze) {
                     visitedEntry[nextDirectionCount.dirCount.direction] = std::list<CountCost> { { nextDirectionCount.dirCount.count, nextDirectionCount.cost } };
                     toProcess[nextDirectionCount.point][nextDirectionCount.dirCount] = nextDirectionCount.cost;
 
-                    previousPoint[nextDirectionCount.point][nextDirectionCount.dirCount] = currentPoint;
+                    previousPoint[ { nextDirectionCount.point, nextDirectionCount.dirCount, nextDirectionCount.cost }] = { currentPoint, currentDirectionCount, currentCost };
                 } else {
                     bool ignore=false;
                     //for (auto it = visitedEntry.begin(); it != visitedEntry.end();) {
@@ -287,7 +298,7 @@ int solve(std::vector<std::vector<int>> maze) {
                         visitedEntry[nextDirectionCount.dirCount.direction].push_back({ nextDirectionCount.dirCount.count, nextDirectionCount.cost });
                         toProcess[nextDirectionCount.point][nextDirectionCount.dirCount] = nextDirectionCount.cost;
 
-                        previousPoint[nextDirectionCount.point][nextDirectionCount.dirCount] = currentPoint;
+                        previousPoint[ { nextDirectionCount.point, nextDirectionCount.dirCount, nextDirectionCount.cost }] = { currentPoint, currentDirectionCount, currentCost };
                     }
                 }
             }
@@ -300,17 +311,17 @@ int solve(std::vector<std::vector<int>> maze) {
     int bestCost = INT_MAX;
     PointDirection lastPoint;
 
-    // std::map<Point, std::map<DirectionCount, Point>> previousPoint;
-    auto lastPointsIt = previousPoint.find({ (int) maze.size() - 1, (int) maze[0].size() - 1 });
+    // std::map<PointDirection, PointDirection>
 
     for (auto& entry : visited[maze.size() - 1][maze[0].size() - 1]) {
         for (auto& countCost : entry.second) {
             if (countCost.cost < bestCost) {
                 bestCost = countCost.cost;
-                
-                for (auto it = lastPointsIt->second.begin(); it != lastPointsIt->second.end(); ++it) {
-                    if (it->first.direction == entry.first && it->first.count == countCost.count) {
-                        lastPoint = { lastPointsIt->first, it->first, countCost.cost };
+
+                auto lastPointsIt = previousPoint.find( { { (int)maze.size() - 1, (int)maze[0].size() - 1 }, { entry.first, countCost.count }, countCost.cost });
+                for (; lastPointsIt != previousPoint.end(); ++lastPointsIt) {
+                    if (lastPointsIt->first.dirCount.count == countCost.count && lastPointsIt->first.dirCount.direction == entry.first) {
+                        lastPoint = lastPointsIt->first;
                         break;
                     }
                 }
@@ -321,7 +332,7 @@ int solve(std::vector<std::vector<int>> maze) {
     // display solution in reverse from lastPoint until { 0, 0 }
     while (lastPoint.point.x != 0 || lastPoint.point.y != 0) {
         std::cout << lastPoint.point.x << "," << lastPoint.point.y << std::endl;
-        lastPoint = { previousPoint[lastPoint.point][lastPoint.dirCount], lastPoint.dirCount, lastPoint.cost };
+        lastPoint = previousPoint[ { lastPoint.point, lastPoint.dirCount, lastPoint.cost }];
     }
 
     return bestCost;
