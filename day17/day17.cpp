@@ -124,7 +124,7 @@ struct PointDirection {
 };
 
 
-int solve(std::vector<std::vector<int>> maze) {
+int solve(std::vector<std::vector<int>> maze, int minMovement=0, int maxMovement=3) {
     std::vector<std::vector<std::map<int, std::list<CountCost>>>> visited;
     std::map<Point, std::map<DirectionCount, int>> toProcess;
 
@@ -142,35 +142,35 @@ int solve(std::vector<std::vector<int>> maze) {
     while (!toProcess.empty()) {
         auto pointCandidate = toProcess.begin();
         
-        // count total visited so far for stats
-        // display everything in visited with the lowest cost rows by rows
-        //for (auto& row : visited) {
-        //    for (auto& entry : row) {
-        //        int lowest = INT_MAX;
-        //        for (auto& elem : entry) {
-        //            for (auto& cost : elem.second) {
-        //                if (cost.cost < lowest) {
-        //                    lowest = cost.cost;
-        //                }
-        //            }
-        //        }
+         //count total visited so far for stats
+         //display everything in visited with the lowest cost rows by rows
+        for (auto& row : visited) {
+            for (auto& entry : row) {
+                int lowest = INT_MAX;
+                for (auto& elem : entry) {
+                    for (auto& cost : elem.second) {
+                        if (cost.cost < lowest) {
+                            lowest = cost.cost;
+                        }
+                    }
+                }
 
-        //        if (lowest == INT_MAX) {
-        //            std::cout << "     ";
-        //            continue;
-        //        } else {
-        //            // align to 4 characters
-        //            std::string lowestStr = std::to_string(lowest);
-        //            while (lowestStr.size() < 4) {
-        //                lowestStr = " " + lowestStr;
-        //            }
-        //            std::cout << lowestStr;
-        //        }
-        //    }
-        //    std::cout << std::endl;
-        //}
+                if (lowest == INT_MAX) {
+                    std::cout << "     ";
+                    continue;
+                } else {
+                    // align to 4 characters
+                    std::string lowestStr = std::to_string(lowest);
+                    while (lowestStr.size() < 4) {
+                        lowestStr = " " + lowestStr;
+                    }
+                    std::cout << lowestStr;
+                }
+            }
+            std::cout << std::endl;
+        }
 
-        //std::cout << "============================" << std::endl;
+        std::cout << "============================" << std::endl;
 
         const Point& currentPoint = pointCandidate->first;
         for (auto it = pointCandidate->second.begin() ; it != pointCandidate->second.end(); ++it) {
@@ -202,6 +202,12 @@ int solve(std::vector<std::vector<int>> maze) {
                     continue;
                 }
 
+                if (minMovement > 0) {
+                    if (currentDirectionCount.direction != -1 && currentDirectionCount.direction != direction && currentDirectionCount.count < minMovement) {
+                        continue;
+                    }
+                }
+
                 if (nextPoint.x < 0 || nextPoint.x >= maze[0].size() || nextPoint.y < 0 || nextPoint.y >= maze.size()) {
                     continue;
                 }
@@ -213,7 +219,7 @@ int solve(std::vector<std::vector<int>> maze) {
                     nextDirectionCount.dirCount.count = 1;
                 }
 
-                if (nextDirectionCount.dirCount.count > 3) {
+                if (nextDirectionCount.dirCount.count > maxMovement) {
                     continue;
                 }
 
@@ -311,14 +317,12 @@ int solve(std::vector<std::vector<int>> maze) {
     int bestCost = INT_MAX;
     PointDirection lastPoint;
 
-    // std::map<PointDirection, PointDirection>
-
     for (auto& entry : visited[maze.size() - 1][maze[0].size() - 1]) {
         for (auto& countCost : entry.second) {
-            if (countCost.cost < bestCost) {
+            if (countCost.cost < bestCost && countCost.count >= minMovement) {
                 bestCost = countCost.cost;
 
-                auto lastPointsIt = previousPoint.find( { { (int)maze.size() - 1, (int)maze[0].size() - 1 }, { entry.first, countCost.count }, countCost.cost });
+                auto lastPointsIt = previousPoint.find( { { (int)maze[0].size() - 1, (int)maze.size() - 1 }, { entry.first, countCost.count }, countCost.cost });
                 for (; lastPointsIt != previousPoint.end(); ++lastPointsIt) {
                     if (lastPointsIt->first.dirCount.count == countCost.count && lastPointsIt->first.dirCount.direction == entry.first) {
                         lastPoint = lastPointsIt->first;
@@ -342,7 +346,6 @@ int first() {
     std::fstream newfile;
     newfile.open("input.txt", std::ios::in);
     if (newfile.is_open()) {
-
         std::vector<std::vector<int>> maze;
         std::string line;
         while (getline(newfile, line)) {
@@ -365,7 +368,18 @@ int second() {
     std::fstream newfile;
     newfile.open("input.txt", std::ios::in);
     if (newfile.is_open()) {
+        std::vector<std::vector<int>> maze;
+        std::string line;
+        while (getline(newfile, line)) {
+            std::vector<int> row;
+            for (int i = 0; i < line.size(); i++) {
+                row.push_back(line[i] - '0');
+            }
+            maze.push_back(row);
+        }
 
+        int least = solve(maze, 4, 10);
+        std::cout << least << std::endl;
         newfile.close();
     }
 
@@ -374,7 +388,7 @@ int second() {
 
 int main() {
     first();
-    second();
+    //second();
 }
 
 
