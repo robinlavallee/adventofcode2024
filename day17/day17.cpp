@@ -125,8 +125,10 @@ struct PointDirection {
 
 
 int solve(std::vector<std::vector<int>> maze) {
-    std::vector<std::vector<std::map<int, CountCost>>> visited;
+    std::vector<std::vector<std::map<int, std::list<CountCost>>>> visited;
     std::map<Point, std::map<DirectionCount, int>> toProcess;
+
+    std::map<Point, std::map<DirectionCount, Point>> previousPoint;
 
     visited.resize(maze.size());
     for (int i = 0; i < maze.size(); i++) {
@@ -135,7 +137,7 @@ int solve(std::vector<std::vector<int>> maze) {
 
     PointDirection start = { { 0, 0 }, None, 0 };
     toProcess[start.point][start.dirCount] = 0;
-    visited[start.point.y][start.point.x][None] = { 0, 0 };
+    visited[start.point.y][start.point.x][None] = std::list<CountCost>{ { 0, 0 } };
 
     while (!toProcess.empty()) {
         auto pointCandidate = toProcess.begin();
@@ -146,8 +148,10 @@ int solve(std::vector<std::vector<int>> maze) {
             for (auto& entry : row) {
                 int lowest = INT_MAX;
                 for (auto& elem : entry) {
-                    if (elem.second.cost < lowest) {
-                        lowest = elem.second.cost;
+                    for (auto& cost : elem.second) {
+                        if (cost.cost < lowest) {
+                            lowest = cost.cost;
+                        }
                     }
                 }
 
@@ -208,67 +212,70 @@ int solve(std::vector<std::vector<int>> maze) {
 
                 auto visitedIt = visitedEntry.find(nextDirectionCount.dirCount.direction);
                 if (visitedIt == visitedEntry.end()) {
-                    visitedEntry[nextDirectionCount.dirCount.direction] = { nextDirectionCount.dirCount.count, nextDirectionCount.cost };
+                    visitedEntry[nextDirectionCount.dirCount.direction] = std::list<CountCost> { { nextDirectionCount.dirCount.count, nextDirectionCount.cost } };
                     toProcess[nextDirectionCount.point][nextDirectionCount.dirCount] = nextDirectionCount.cost;
+
+                    previousPoint[nextDirectionCount.point][nextDirectionCount.dirCount] = currentPoint;
                 } else {
                     bool ignore=false;
-                    for (auto it = visitedEntry.begin(); it != visitedEntry.end();) {
+                    //for (auto it = visitedEntry.begin(); it != visitedEntry.end();) {
+                    for (auto it = visitedIt->second.begin(); it != visitedIt->second.end();) {
                         auto& visitedElem = *it;
 
                         // Replace worse entries (new entry is better on cost and direction count)
-                        if (visitedElem.second.count > nextDirectionCount.dirCount.count && visitedElem.second.cost > nextDirectionCount.cost) {
+                        if (visitedElem.count > nextDirectionCount.dirCount.count && visitedElem.cost > nextDirectionCount.cost) {
                             // Remove from toProcess as well
-                            auto toProcessIt = toProcess[nextDirectionCount.point].find( { visitedElem.first, visitedElem.second.count } );
+                            auto toProcessIt = toProcess[nextDirectionCount.point].find( { nextDirectionCount.dirCount.direction, visitedElem.count } );
                             if (toProcessIt != toProcess[nextDirectionCount.point].end()) {
                                 toProcess[nextDirectionCount.point].erase(toProcessIt);
                             }
-                            it = visitedEntry.erase(it);
+                            it = visitedIt->second.erase(it);
                             continue;
                         }
 
                         // Replace worse entries (new entry is better on cost, and same on direction count)
-                        if (visitedElem.second.count == nextDirectionCount.dirCount.count && visitedElem.second.cost > nextDirectionCount.cost) {
-                            auto toProcessIt = toProcess[nextDirectionCount.point].find( { visitedElem.first, visitedElem.second.count } );
+                        if (visitedElem.count == nextDirectionCount.dirCount.count && visitedElem.cost > nextDirectionCount.cost) {
+                            auto toProcessIt = toProcess[nextDirectionCount.point].find( { nextDirectionCount.dirCount.direction, visitedElem.count } );
                             if (toProcessIt != toProcess[nextDirectionCount.point].end()) {
                                 toProcess[nextDirectionCount.point].erase(toProcessIt);
                             }
-                            it = visitedEntry.erase(it);
+                            it = visitedIt->second.erase(it);
                             continue;
                         }
 
                         // Replace worse entries (new entry is same on cost, and better on direction count)
-                        if (visitedElem.second.count > nextDirectionCount.dirCount.count && visitedElem.second.cost == nextDirectionCount.cost) {
-                            auto toProcessIt = toProcess[nextDirectionCount.point].find( { visitedElem.first, visitedElem.second.count } );
+                        if (visitedElem.count > nextDirectionCount.dirCount.count && visitedElem.cost == nextDirectionCount.cost) {
+                            auto toProcessIt = toProcess[nextDirectionCount.point].find( { nextDirectionCount.dirCount.direction, visitedElem.count } );
                             if (toProcessIt != toProcess[nextDirectionCount.point].end()) {
                                 toProcess[nextDirectionCount.point].erase(toProcessIt);
                             }
-                            it = visitedEntry.erase(it);
+                            it = visitedIt->second.erase(it);
                             continue;
                         }
 
                         // do nothing if the entry is the same (ignore it)
-                        if (visitedElem.second.count == nextDirectionCount.dirCount.count && visitedElem.second.cost == nextDirectionCount.cost) {
+                        if (visitedElem.count == nextDirectionCount.dirCount.count && visitedElem.cost == nextDirectionCount.cost) {
                             ignore = true;
                             ++it;
                             continue;
                         }
 
                         // do nothing if the entry has same cost but higher count
-                        if (visitedElem.second.cost == nextDirectionCount.cost && visitedElem.second.count < nextDirectionCount.dirCount.count) {
+                        if (visitedElem.cost == nextDirectionCount.cost && visitedElem.count < nextDirectionCount.dirCount.count) {
                             ignore = true;
                             ++it;
                             continue;
                         }
 
                         // do nothing if the entry has higher cost but same count
-                        if (visitedElem.second.cost < nextDirectionCount.cost && visitedElem.second.count == nextDirectionCount.dirCount.count) {
+                        if (visitedElem.cost < nextDirectionCount.cost && visitedElem.count == nextDirectionCount.dirCount.count) {
                             ignore = true;
                             ++it;
                             continue;
                         }
 
                         // do nothing if the entry has higher cost and higher count
-                        if (visitedElem.second.cost < nextDirectionCount.cost && visitedElem.second.count < nextDirectionCount.dirCount.count) {
+                        if (visitedElem.cost < nextDirectionCount.cost && visitedElem.count < nextDirectionCount.dirCount.count) {
                             ignore = true;
                             ++it;
                             continue;
@@ -277,8 +284,10 @@ int solve(std::vector<std::vector<int>> maze) {
                     }
 
                     if (!ignore) {
-                        visitedEntry[nextDirectionCount.dirCount.direction] = { nextDirectionCount.dirCount.count, nextDirectionCount.cost };
+                        visitedEntry[nextDirectionCount.dirCount.direction].push_back({ nextDirectionCount.dirCount.count, nextDirectionCount.cost });
                         toProcess[nextDirectionCount.point][nextDirectionCount.dirCount] = nextDirectionCount.cost;
+
+                        previousPoint[nextDirectionCount.point][nextDirectionCount.dirCount] = currentPoint;
                     }
                 }
             }
@@ -289,10 +298,30 @@ int solve(std::vector<std::vector<int>> maze) {
 
     // get the best cost from bottom right position
     int bestCost = INT_MAX;
+    PointDirection lastPoint;
+
+    // std::map<Point, std::map<DirectionCount, Point>> previousPoint;
+    auto lastPointsIt = previousPoint.find({ (int) maze.size() - 1, (int) maze[0].size() - 1 });
+
     for (auto& entry : visited[maze.size() - 1][maze[0].size() - 1]) {
-        if (entry.second.cost < bestCost) {
-            bestCost = entry.second.cost;
+        for (auto& countCost : entry.second) {
+            if (countCost.cost < bestCost) {
+                bestCost = countCost.cost;
+                
+                for (auto it = lastPointsIt->second.begin(); it != lastPointsIt->second.end(); ++it) {
+                    if (it->first.direction == entry.first && it->first.count == countCost.count) {
+                        lastPoint = { lastPointsIt->first, it->first, countCost.cost };
+                        break;
+                    }
+                }
+            }
         }
+    }
+
+    // display solution in reverse from lastPoint until { 0, 0 }
+    while (lastPoint.point.x != 0 || lastPoint.point.y != 0) {
+        std::cout << lastPoint.point.x << "," << lastPoint.point.y << std::endl;
+        lastPoint = { previousPoint[lastPoint.point][lastPoint.dirCount], lastPoint.dirCount, lastPoint.cost };
     }
 
     return bestCost;
