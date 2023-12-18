@@ -142,35 +142,36 @@ int solve(std::vector<std::vector<int>> maze, int minMovement=0, int maxMovement
     while (!toProcess.empty()) {
         auto pointCandidate = toProcess.begin();
         
-         //count total visited so far for stats
-         //display everything in visited with the lowest cost rows by rows
-        for (auto& row : visited) {
-            for (auto& entry : row) {
-                int lowest = INT_MAX;
-                for (auto& elem : entry) {
-                    for (auto& cost : elem.second) {
-                        if (cost.cost < lowest) {
-                            lowest = cost.cost;
+        static const bool DEBUG_DISPLAY = false;
+        if (DEBUG_DISPLAY) {
+            for (auto& row : visited) {
+                for (auto& entry : row) {
+                    int lowest = INT_MAX;
+                    for (auto& elem : entry) {
+                        for (auto& cost : elem.second) {
+                            if (cost.cost < lowest) {
+                                lowest = cost.cost;
+                            }
                         }
                     }
-                }
 
-                if (lowest == INT_MAX) {
-                    std::cout << "     ";
-                    continue;
-                } else {
-                    // align to 4 characters
-                    std::string lowestStr = std::to_string(lowest);
-                    while (lowestStr.size() < 4) {
-                        lowestStr = " " + lowestStr;
+                    if (lowest == INT_MAX) {
+                        std::cout << "     ";
+                        continue;
+                    } else {
+                        // align to 4 characters
+                        std::string lowestStr = std::to_string(lowest);
+                        while (lowestStr.size() < 4) {
+                            lowestStr = " " + lowestStr;
+                        }
+                        std::cout << lowestStr;
                     }
-                    std::cout << lowestStr;
                 }
+                std::cout << std::endl;
             }
-            std::cout << std::endl;
-        }
 
-        std::cout << "============================" << std::endl;
+            std::cout << "============================" << std::endl;
+        }
 
         const Point& currentPoint = pointCandidate->first;
         for (auto it = pointCandidate->second.begin() ; it != pointCandidate->second.end(); ++it) {
@@ -235,12 +236,11 @@ int solve(std::vector<std::vector<int>> maze, int minMovement=0, int maxMovement
                     previousPoint[ { nextDirectionCount.point, nextDirectionCount.dirCount, nextDirectionCount.cost }] = { currentPoint, currentDirectionCount, currentCost };
                 } else {
                     bool ignore=false;
-                    //for (auto it = visitedEntry.begin(); it != visitedEntry.end();) {
                     for (auto it = visitedIt->second.begin(); it != visitedIt->second.end();) {
                         auto& visitedElem = *it;
 
                         // Replace worse entries (new entry is better on cost and direction count)
-                        if (visitedElem.count > nextDirectionCount.dirCount.count && visitedElem.cost > nextDirectionCount.cost) {
+                        if (visitedElem.count > nextDirectionCount.dirCount.count && visitedElem.cost > nextDirectionCount.cost && minMovement == 0) {
                             // Remove from toProcess as well
                             auto toProcessIt = toProcess[nextDirectionCount.point].find( { nextDirectionCount.dirCount.direction, visitedElem.count } );
                             if (toProcessIt != toProcess[nextDirectionCount.point].end()) {
@@ -251,7 +251,7 @@ int solve(std::vector<std::vector<int>> maze, int minMovement=0, int maxMovement
                         }
 
                         // Replace worse entries (new entry is better on cost, and same on direction count)
-                        if (visitedElem.count == nextDirectionCount.dirCount.count && visitedElem.cost > nextDirectionCount.cost) {
+                        if (visitedElem.count == nextDirectionCount.dirCount.count && visitedElem.cost > nextDirectionCount.cost && minMovement == 0) {
                             auto toProcessIt = toProcess[nextDirectionCount.point].find( { nextDirectionCount.dirCount.direction, visitedElem.count } );
                             if (toProcessIt != toProcess[nextDirectionCount.point].end()) {
                                 toProcess[nextDirectionCount.point].erase(toProcessIt);
@@ -261,7 +261,7 @@ int solve(std::vector<std::vector<int>> maze, int minMovement=0, int maxMovement
                         }
 
                         // Replace worse entries (new entry is same on cost, and better on direction count)
-                        if (visitedElem.count > nextDirectionCount.dirCount.count && visitedElem.cost == nextDirectionCount.cost) {
+                        if (visitedElem.count > nextDirectionCount.dirCount.count && visitedElem.cost == nextDirectionCount.cost && minMovement == 0) {
                             auto toProcessIt = toProcess[nextDirectionCount.point].find( { nextDirectionCount.dirCount.direction, visitedElem.count } );
                             if (toProcessIt != toProcess[nextDirectionCount.point].end()) {
                                 toProcess[nextDirectionCount.point].erase(toProcessIt);
@@ -278,7 +278,7 @@ int solve(std::vector<std::vector<int>> maze, int minMovement=0, int maxMovement
                         }
 
                         // do nothing if the entry has same cost but higher count
-                        if (visitedElem.cost == nextDirectionCount.cost && visitedElem.count < nextDirectionCount.dirCount.count) {
+                        if (visitedElem.cost == nextDirectionCount.cost && visitedElem.count < nextDirectionCount.dirCount.count && minMovement == 0) {
                             ignore = true;
                             ++it;
                             continue;
@@ -292,7 +292,7 @@ int solve(std::vector<std::vector<int>> maze, int minMovement=0, int maxMovement
                         }
 
                         // do nothing if the entry has higher cost and higher count
-                        if (visitedElem.cost < nextDirectionCount.cost && visitedElem.count < nextDirectionCount.dirCount.count) {
+                        if (visitedElem.cost < nextDirectionCount.cost && visitedElem.count < nextDirectionCount.dirCount.count && minMovement == 0) {
                             ignore = true;
                             ++it;
                             continue;
@@ -388,7 +388,7 @@ int second() {
 
 int main() {
     first();
-    //second();
+    second();
 }
 
 
