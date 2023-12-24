@@ -166,11 +166,149 @@ int first() {
 }
 
 int second() {
-    std::fstream newfile;
+std::fstream newfile;
     newfile.open("input.txt", std::ios::in);
     if (newfile.is_open()) {
+        std::string line;
+        Point topLeft = {0, 0};
+        Point bottomRight = {0, 0};
+        Point current = { 0, 0 };
+        while (getline(newfile, line)) {
+            // R 6 (#70c710)
 
+            std::string color = line.substr(line.length() - 7, 6);
+            
+            // 70c710 --> 70c71 --> 461937
+            int steps = std::stoi(color.substr(0, color.length() - 1), nullptr, 16);
+
+            char direction = color[5];
+
+            if (direction == '3') {
+                current.y -= steps;
+            } else if (direction == '1') {
+                current.y += steps;
+            } else if (direction == '2') {
+                current.x -= steps;
+            } else if (direction == '0') {
+                current.x += steps;
+            }
+
+            topLeft.x = std::min(topLeft.x, current.x);
+            topLeft.y = std::min(topLeft.y, current.y);
+
+            bottomRight.x = std::max(bottomRight.x, current.x);
+            bottomRight.y = std::max(bottomRight.y, current.y);
+        }
+
+        Point origin = {0 - topLeft.x, 0 - topLeft.y};
+        int width = bottomRight.x - topLeft.x + 1;
+        int height = bottomRight.y - topLeft.y + 1;
+
+        current = origin;
+        std::vector<std::string> grid(height, std::string(width, '.'));
+        grid[current.y][current.x] = '#';
+
+        newfile.clear();
+        newfile.seekg(0, std::ios::beg);
+        while (getline(newfile, line)) {
+
+            std::string color = line.substr(line.length() - 7, 6);
+            int steps = std::stoi(color.substr(0, color.length() - 1), nullptr, 16);
+            char direction = line[5];
+
+            // 0=R, 1=D, 2=L, 3=U
+
+            if (direction == '3') {
+                for (int i = 0; i < steps; i++) {
+                    current.y--;
+                    grid[current.y][current.x] = '#';
+                }
+            } else if (direction == '1') {
+                for (int i = 0; i < steps; i++) {
+                    current.y++;
+                    grid[current.y][current.x] = '#';
+                }
+            } else if (direction == '2') {
+                for (int i = 0; i < steps; i++) {
+                    current.x--;
+                    grid[current.y][current.x] = '#';
+                }
+            } else if (direction == '0') {
+                for (int i = 0; i < steps; i++) {
+                    current.x++;
+                    grid[current.y][current.x] = '#';
+                }
+            }
+        }       
         newfile.close();
+
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                std::cout << grid[i][j];
+            }
+            std::cout << std::endl;
+        }
+
+        // flood fill the outside and let's see what's left
+
+        std::set<Point> toVisit;
+        for (int i = 0; i < width; i++) {
+            if (grid[0][i] == '.') {
+                toVisit.insert({i, 0});
+            }
+
+            if (grid[height - 1][i] == '.') {
+                toVisit.insert({i, height - 1});
+            }
+        }
+
+        for (int i = 0; i < height; i++) {
+            if (grid[i][0] == '.') {
+                toVisit.insert({0, i});
+            }
+
+            if (grid[i][width - 1] == '.') {
+                toVisit.insert({width - 1, i});
+            }
+        }
+
+        while (!toVisit.empty()) {
+            Point current = *toVisit.begin();
+            toVisit.erase(toVisit.begin());
+
+            if (current.x < 0 || current.x >= width || current.y < 0 || current.y >= height) {
+                continue;
+            }
+
+            if (grid[current.y][current.x] == '.') {
+                grid[current.y][current.x] = 'O';
+                toVisit.insert({current.x - 1, current.y});
+                toVisit.insert({current.x + 1, current.y});
+                toVisit.insert({current.x, current.y - 1});
+                toVisit.insert({current.x, current.y + 1});
+            }
+        }
+
+        // convert all insides to #
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++){
+                if (grid[i][j] == '.') {
+                    grid[i][j] = '#';
+                }
+            }
+        }
+
+        // count all #
+        int count = 0;
+        for (int i = 0; i < height; i++) {
+            for (int j = 0;j < width; j++) {
+                if (grid[i][j] == '#') {
+                    count++;
+                }
+            }
+        }
+
+        std::cout << count << std::endl;
     }
 
     return 0;
