@@ -11,6 +11,16 @@
 struct Point {
     int x;
     int y;
+
+    bool operator<(const Point& other) const {
+        if (y < other.y) {
+            return true;
+        } else if (y == other.y) {
+            return x < other.x;
+        } else {
+            return false;
+        }
+    }
 };	
 
 int first() {
@@ -89,6 +99,67 @@ int first() {
             }
             std::cout << std::endl;
         }
+
+        // flood fill the outside and let's see what's left
+
+        std::set<Point> toVisit;
+        for (int i = 0; i < width; i++) {
+            if (grid[0][i] == '.') {
+                toVisit.insert({i, 0});
+            }
+
+            if (grid[height - 1][i] == '.') {
+                toVisit.insert({i, height - 1});
+            }
+        }
+
+        for (int i = 0; i < height; i++) {
+            if (grid[i][0] == '.') {
+                toVisit.insert({0, i});
+            }
+
+            if (grid[i][width - 1] == '.') {
+                toVisit.insert({width - 1, i});
+            }
+        }
+
+        while (!toVisit.empty()) {
+            Point current = *toVisit.begin();
+            toVisit.erase(toVisit.begin());
+
+            if (current.x < 0 || current.x >= width || current.y < 0 || current.y >= height) {
+                continue;
+            }
+
+            if (grid[current.y][current.x] == '.') {
+                grid[current.y][current.x] = 'O';
+                toVisit.insert({current.x - 1, current.y});
+                toVisit.insert({current.x + 1, current.y});
+                toVisit.insert({current.x, current.y - 1});
+                toVisit.insert({current.x, current.y + 1});
+            }
+        }
+
+        // convert all insides to #
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++){
+                if (grid[i][j] == '.') {
+                    grid[i][j] = '#';
+                }
+            }
+        }
+
+        // count all #
+        int count = 0;
+        for (int i = 0; i < height; i++) {
+            for (int j = 0;j < width; j++) {
+                if (grid[i][j] == '#') {
+                    count++;
+                }
+            }
+        }
+
+        std::cout << count << std::endl;
     }
 
     return 0;
