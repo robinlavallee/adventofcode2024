@@ -172,6 +172,103 @@ int first() {
     return 0;
 }
 
+int computeArrangements(std::string record, std::vector<int> numbers) {
+    if (numbers.size() == 0) {
+        return 0;
+    }
+    
+    int numRequired = 0;
+    for (int i = 0; i < numbers.size(); ++i) {
+        numRequired += numbers[i];
+    }
+
+    numRequired += numbers.size() - 1;
+    if (numRequired > record.size()) {
+        return 0;
+    }
+
+    // ???.### 1,1,3
+
+    // If we want to do 1, then we need to do #. so we can look everywhere and place it, if we see anything else like ##., then it doesn't work, then recurse
+
+    int totalArrangements = 0;
+    int number = numbers[0];
+    for (int i = 0; i < record.size()-number+1; ++i) {
+        bool valid = true;
+        for (int j = 0; j < number; ++j) {
+            if (record[i+j] != '#' && record[i+j] != '?') {
+                valid = false;
+                break;
+            }
+        }
+
+        // need to be end of the record string OR a space if not at the end
+        if (i + number < record.size()) {
+            if (record[i+number] == '#') {
+                valid = false;
+            }
+        }
+
+        if (!valid) {
+            continue;
+        }
+
+        if (numbers.size() == 1) {
+            totalArrangements++;
+        } else {
+            int numArrangement = computeArrangements(record.substr(i + number + 1), std::vector<int>(numbers.begin() + 1, numbers.end()));
+            totalArrangements += numArrangement;
+        }
+    }
+
+    return totalArrangements;
+}
+
+int firstalternative() {
+    std::fstream newfile;
+    newfile.open("input.txt", std::ios::in);
+    if (newfile.is_open()) {
+        /* format looks like:
+???.### 1,1,3
+.??..??...?##. 1,1,3
+?#?#?#?#?#?#?#? 1,3,1,6
+????.#...#... 4,1,1
+????.######..#####. 1,6,5
+?###???????? 3,2,1        
+        */
+
+        std::string line;
+        int totalValidArrangements = 0;
+        while (getline(newfile, line)) {
+            line += ",";
+            
+            int space = line.find(" ");
+            std::string record = line.substr(0, space);
+
+            // split by comma
+            std::vector<int> numbers;
+            std::string rest = line.substr(space + 1);
+            space = rest.find(",");
+            while (space != std::string::npos) {
+                std::string number = rest.substr(0, space);
+                numbers.push_back(std::stoi(number));
+                rest = rest.substr(space + 1);
+                space = rest.find(",");
+            }
+
+            int numArrangement = computeArrangements(record, numbers);
+            totalValidArrangements += numArrangement;
+        }
+
+        std::cout << totalValidArrangements << std::endl;
+            
+        newfile.close();
+    }
+       
+
+    return 0;
+}
+
 int second() {
         /* format looks like:
 ???.### 1,1,3
@@ -351,7 +448,10 @@ int second() {
 
 int main() {
     first();
-    second();
+    firstalternative();
+    //second();
+
+    
 }
 
 
