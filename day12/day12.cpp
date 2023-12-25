@@ -194,28 +194,63 @@ int computeArrangements(std::string record, std::vector<int> numbers) {
     int totalArrangements = 0;
     int number = numbers[0];
     for (int i = 0; i < record.size()-number+1; ++i) {
-        bool valid = true;
-        for (int j = 0; j < number; ++j) {
-            if (record[i+j] != '#' && record[i+j] != '?') {
-                valid = false;
-                break;
+
+        {
+            bool valid = true;
+            for (int j = 0; j < number; ++j) {
+                if (record[i+j] != '#' && record[i+j] != '?') {
+                    valid = false;
+                    break;
+                }
+            }
+
+            if (!valid) {
+                continue;
             }
         }
 
         // need to be end of the record string OR a space if not at the end
         if (i + number < record.size()) {
             if (record[i+number] == '#') {
-                valid = false;
+                continue;
             }
         }
 
-        if (!valid) {
-            continue;
+        if (i > 0) {
+            bool valid=true;
+            for (int k = 1; k <= i; ++k) {
+                if (record[i-k] == '#') {
+                    valid = false;
+                    break;
+                }
+            }
+            if (!valid) {
+                continue;
+            }
         }
 
         if (numbers.size() == 1) {
-            totalArrangements++;
-        } else {
+            if (i + number < record.size()) {
+                std::string subRecords = record.substr(i + number);
+                bool valid=true;
+                for (int i = 0; i < subRecords.size(); ++i) {
+                    if (subRecords[i] == '#') {
+                        valid = false;
+                        break;
+                    }
+                }
+
+                if (valid) {
+                    totalArrangements++;
+                }
+            } else {
+                totalArrangements++;
+            }
+        } else { 
+            if (i + number + 1 >= record.size()) {
+                continue;
+            }
+
             int numArrangement = computeArrangements(record.substr(i + number + 1), std::vector<int>(numbers.begin() + 1, numbers.end()));
             totalArrangements += numArrangement;
         }
@@ -257,6 +292,7 @@ int firstalternative() {
             }
 
             int numArrangement = computeArrangements(record, numbers);
+            std::cout << numArrangement << std::endl;
             totalValidArrangements += numArrangement;
         }
 
@@ -447,7 +483,7 @@ int second() {
 }
 
 int main() {
-    first();
+    //first();
     firstalternative();
     //second();
 
