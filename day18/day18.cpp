@@ -177,7 +177,7 @@ std::fstream newfile;
             // R 6 (#70c710)
 
             std::string color = line.substr(line.length() - 7, 6);
-            
+             
             // 70c710 --> 70c71 --> 461937
             int steps = std::stoi(color.substr(0, color.length() - 1), nullptr, 16);
 
