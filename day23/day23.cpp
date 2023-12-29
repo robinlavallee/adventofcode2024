@@ -30,7 +30,7 @@ struct Point {
     }
 };
 
-int solveLongest(std::list<Point>& path, std::vector<std::string>& maze, Point end) {
+int solveLongest(std::list<Point>& path, std::vector<std::string>& maze, Point end, bool canClimb) {
 
     std::list<Point> candidates;
     while (true) {
@@ -39,16 +39,30 @@ int solveLongest(std::list<Point>& path, std::vector<std::string>& maze, Point e
             return path.size() - 1;
         }
 
-        if (current.x > 0 && (maze[current.y][current.x - 1] == '.' || maze[current.y][current.x - 1] == '<')) {
+        char left = current.x > 0 ? maze[current.y][current.x - 1] : '#';
+        bool canGoLeft = left == '.' || left == '<' || ((left == '>' || left == '^' || left == 'v') && canClimb);
+
+        char right = current.x < maze[0].size() - 1 ? maze[current.y][current.x + 1] : '#';
+        bool canGoRight = right == '.' || right == '>' || ((right == '<' || right == '^' || right == 'v') && canClimb);
+        
+        char up = current.y > 0 ? maze[current.y - 1][current.x] : '#';
+        bool canGoUp = up == '.' || up == '^' || ((up == '<' || up == '>' || up == 'v') && canClimb);
+
+        char down = current.y < maze.size() - 1 ? maze[current.y + 1][current.x] : '#';
+        bool canGoDown = down == '.' || down == 'v' || ((down == '<' || down == '>' || down == '^') && canClimb);
+
+        if (canGoLeft) {
             candidates.push_back({current.x - 1, current.y});
         }
-        if (current.x < maze[0].size() - 1 && (maze[current.y][current.x + 1] == '.' || maze[current.y][current.x + 1] == '>')) {
+        if (canGoRight) {
             candidates.push_back({current.x + 1, current.y});
         }
-        if (current.y > 0 && (maze[current.y - 1][current.x] == '.' || maze[current.y - 1][current.x] == '^')) {
+        
+        if (canGoUp) {
             candidates.push_back({current.x, current.y - 1});
         }
-        if (current.y < maze.size() - 1 && (maze[current.y + 1][current.x] == '.' || maze[current.y + 1][current.x] == 'v')) {
+        
+        if (canGoDown) {
             candidates.push_back({current.x, current.y + 1});
         }
 
@@ -58,6 +72,8 @@ int solveLongest(std::list<Point>& path, std::vector<std::string>& maze, Point e
             candidates.pop_front();
         } else if (candidates.size() > 1) {
             break;
+        } else if (candidates.size() == 0) {
+            return -1; // invalid, got stuck
         }
     } 
 
@@ -70,7 +86,7 @@ int solveLongest(std::list<Point>& path, std::vector<std::string>& maze, Point e
         newPath.push_back(candidate);
         newMaze[candidate.y][candidate.x] = 'O';
 
-        longest = std::max(longest, solveLongest(newPath, newMaze, end));
+        longest = std::max(longest, solveLongest(newPath, newMaze, end, canClimb));
     }
 
     return longest;
@@ -97,7 +113,7 @@ int first() {
         }
 
         Point end = {maze[maze.size() - 1].find('.'), maze.size() - 1};
-        int longest = solveLongest(path, maze, end);
+        int longest = solveLongest(path, maze, end, false);
         std::cout << longest << std::endl;
 
         newfile.close();
@@ -111,6 +127,26 @@ int second() {
     std::fstream newfile;
     newfile.open("input.txt", std::ios::in);
     if (newfile.is_open()) {
+
+        std::vector<std::string> maze;
+
+        std::string line;
+        bool first = true;
+        std::list<Point> path;
+        while (getline(newfile, line)) {
+            maze.push_back(line);
+
+            if (first) {
+                path.push_back({(int)line.find('.'), 0});
+                maze[0][line.find('.')] = 'O';
+                first = false;
+            }
+        }
+
+        Point end = {maze[maze.size() - 1].find('.'), maze.size() - 1};
+        int longest = solveLongest(path, maze, end, true);
+        std::cout << longest << std::endl;
+
         newfile.close();
     }
 
