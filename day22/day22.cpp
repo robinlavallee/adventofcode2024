@@ -58,7 +58,12 @@ struct Brick {
     Point p1;
     Point p2;
 
-    Brick(Point p1, Point p2) : p1(p1), p2(p2) {}
+    Brick(Point p1, Point p2) : p1(p1), p2(p2) {
+        // always put p1 as the smallest
+        if (p1 > p2) {
+            std::swap(this->p1, this->p2);
+        }
+    }
 
     bool isVertical() const { return p1.z != p2.z; }
     bool isHorizontal() const { return !isVertical(); }
@@ -95,65 +100,54 @@ bool fall(GridVector& grid, std::list<Brick>& bricks) {
 
         // check if it can go down
         if (brick.isHorizontal()) {
-            if (brick.p1.z == numZ - 1) {
-                it++;
-                continue;
-            }
-
-            if (brick.p1.x == brick.p2.x) { // brick is horizontal on y axis
-                bool canMove = true;
-                for (int i = brick.p1.y; i <= brick.p2.y; i++) {
-                    if (grid[brick.p1.z+1][i][brick.p1.x] == 1) {
-                        canMove = false;
-                        break;
-                    }
-                }
-
-                if (canMove) {
-                    for (int i = brick.p1.y; i <= brick.p2.y; i++) {
-                        grid[brick.p1.z][i][brick.p1.x] = 0;
-                        grid[brick.p1.z+1][i][brick.p1.x] = 1;
-                    }
-                    brick.p1.z++;
-                    brick.p2.z++;
-                    it = bricks.begin();
-                    moved = true;
-                    continue;
-                }
-            } else if (brick.p1.y == brick.p2.y) { // brick is horizontal on x axis
-                bool canMove = true;
-                for (int i = brick.p1.x; i <= brick.p2.x; i++) {
-                    if (grid[brick.p1.z+1][brick.p1.y][i] == 1) {
-                        canMove = false;
-                        break;
-                    }
-                }
-
-                if (canMove) {
-                    for (int i = brick.p1.x; i <= brick.p2.x; i++) {
-                        grid[brick.p1.z][brick.p1.y][i] = 0;
-                        grid[brick.p1.z+1][brick.p1.y][i] = 1;
-                    }
-                    brick.p1.z++;
-                    brick.p2.z++;
-                    it = bricks.begin();
-                    moved = true;
-                    continue;
-                }
-            }
-        } else {
-            int lowestZ = std::max(brick.p1.z, brick.p2.z);
-            if (lowestZ == numZ - 1) {
+            if (brick.p1.z == 1) {
                 it++;
                 continue;
             }
 
             // check if we can move down
-            if (grid[lowestZ+1][brick.p1.y][brick.p1.x] == 0) {
-                grid[lowestZ][brick.p1.y][brick.p1.x] = 0;
-                grid[lowestZ+1][brick.p1.y][brick.p1.x] = 1;
-                brick.p1.z++;
-                brick.p2.z++;
+            bool canMove = true;
+            for (int i = brick.p1.x; i <= brick.p2.x; i++) {
+                for (int j = brick.p1.y; j <= brick.p2.y; j++) {
+                    if (grid[brick.p1.z-1][j][i] == 1) {
+                        canMove = false;
+                        break;
+                    }
+                }
+                if (!canMove) {
+                    break;
+                }
+            }
+
+            if (canMove) {
+                for (int i = brick.p1.x; i <= brick.p2.x; i++) {
+                    for (int j = brick.p1.y; j <= brick.p2.y; j++) {
+                        grid[brick.p1.z][j][i] = 0;
+                        grid[brick.p1.z-1][j][i] = 1;
+                    }
+                }
+                brick.p1.z--;
+                brick.p2.z--;
+                it = bricks.begin();
+                moved = true;
+                continue;
+            }
+
+        } else {
+            int lowestZ = std::min(brick.p1.z, brick.p2.z);
+            if (lowestZ == 1) {
+                it++;
+                continue;
+            }
+
+            int highestZ = std::max(brick.p1.z, brick.p2.z);
+
+            // check if we can move down
+            if (grid[lowestZ-1][brick.p1.y][brick.p1.x] == 0) {
+                grid[highestZ][brick.p1.y][brick.p1.x] = 0;
+                grid[lowestZ-1][brick.p1.y][brick.p1.x] = 1;
+                brick.p1.z--;
+                brick.p2.z--;
                 it = bricks.begin();
                 moved = true;
                 continue;
