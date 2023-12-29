@@ -30,13 +30,12 @@ struct Point {
     }
 };
 
-int solveLongest(std::list<Point>& path, std::vector<std::string>& maze, Point end, bool canClimb) {
+int solveLongest(Point current, int length, std::vector<std::string>& maze, Point end, bool canClimb) {
 
     std::list<Point> candidates;
     while (true) {
-        Point current = path.back();
         if (current == end) {
-            return path.size() - 1;
+            return length;
         }
 
         char left = current.x > 0 ? maze[current.y][current.x - 1] : '#';
@@ -67,9 +66,10 @@ int solveLongest(std::list<Point>& path, std::vector<std::string>& maze, Point e
         }
 
         if (candidates.size() == 1) {
-            path.push_back(candidates.front());
-            maze[candidates.front().y][candidates.front().x] = 'O';
-            candidates.pop_front();
+            current = candidates.front();
+            length++;
+            maze[current.y][current.x] = 'O';
+            candidates.clear();
         } else if (candidates.size() > 1) {
             break;
         } else if (candidates.size() == 0) {
@@ -81,12 +81,8 @@ int solveLongest(std::list<Point>& path, std::vector<std::string>& maze, Point e
     int longest = 0;
     for (auto& candidate : candidates) {
         auto newMaze = maze;
-        auto newPath = path;
-
-        newPath.push_back(candidate);
         newMaze[candidate.y][candidate.x] = 'O';
-
-        longest = std::max(longest, solveLongest(newPath, newMaze, end, canClimb));
+        longest = std::max(longest, solveLongest(candidate, length+1, newMaze, end, canClimb));
     }
 
     return longest;
@@ -101,19 +97,19 @@ int first() {
 
         std::string line;
         bool first = true;
-        std::list<Point> path;
+        Point start;
         while (getline(newfile, line)) {
             maze.push_back(line);
 
             if (first) {
-                path.push_back({(int)line.find('.'), 0});
+                start = {(int)line.find('.'), 0};
                 maze[0][line.find('.')] = 'O';
                 first = false;
             }
         }
 
         Point end = {maze[maze.size() - 1].find('.'), maze.size() - 1};
-        int longest = solveLongest(path, maze, end, false);
+        int longest = solveLongest(start, 0, maze, end, false);
         std::cout << longest << std::endl;
 
         newfile.close();
@@ -132,19 +128,19 @@ int second() {
 
         std::string line;
         bool first = true;
-        std::list<Point> path;
+        Point start;
         while (getline(newfile, line)) {
             maze.push_back(line);
 
             if (first) {
-                path.push_back({(int)line.find('.'), 0});
+                start = { (int)line.find('.'), 0 };
                 maze[0][line.find('.')] = 'O';
                 first = false;
             }
         }
 
         Point end = {maze[maze.size() - 1].find('.'), maze.size() - 1};
-        int longest = solveLongest(path, maze, end, true);
+        int longest = solveLongest(start, 0, maze, end, true);
         std::cout << longest << std::endl;
 
         newfile.close();
