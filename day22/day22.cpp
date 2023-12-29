@@ -48,6 +48,10 @@ struct Point {
             return false;
         }
     }
+
+    bool operator==(const Point& other) const {
+        return x == other.x && y == other.y && z == other.z;
+    }
 };
 
 struct Brick {
@@ -72,24 +76,93 @@ struct Brick {
             return false;
         }
     }
-}
 
-void fall(std::vector<std::vector<std::vector<int>>>& grid, std::set<Brick>& bricks) {
-    bool stable = true;
+    bool operator==(const Brick& other) const {
+        return p1 == other.p1 && p2 == other.p2;
+    }
+};
+
+using GridVector = std::vector<std::vector<std::vector<int>>>;
+
+// return true if anything moved
+bool fall(GridVector& grid, std::list<Brick>& bricks) {
+    bool moved=false;
     int numZ = grid.size();
     int numY = grid[0].size();
     int numX = grid[0][0].size();
-    do {
-        for (auto it = bricks.begin(); it != bricks.end();) {
-            Brick brick = *it;
+    for (auto it = bricks.begin(); it != bricks.end();) {
+        Brick& brick = *it;
 
-            // check if it can go down
-            if (brick.isHorizontal()) {
+        // check if it can go down
+        if (brick.isHorizontal()) {
+            if (brick.p1.z == numZ - 1) {
+                it++;
+                continue;
+            }
 
+            if (brick.p1.x == brick.p2.x) { // brick is horizontal on y axis
+                bool canMove = true;
+                for (int i = brick.p1.y; i <= brick.p2.y; i++) {
+                    if (grid[brick.p1.z+1][i][brick.p1.x] == 1) {
+                        canMove = false;
+                        break;
+                    }
+                }
+
+                if (canMove) {
+                    for (int i = brick.p1.y; i <= brick.p2.y; i++) {
+                        grid[brick.p1.z][i][brick.p1.x] = 0;
+                        grid[brick.p1.z+1][i][brick.p1.x] = 1;
+                    }
+                    brick.p1.z++;
+                    brick.p2.z++;
+                    it = bricks.begin();
+                    moved = true;
+                    continue;
+                }
+            } else if (brick.p1.y == brick.p2.y) { // brick is horizontal on x axis
+                bool canMove = true;
+                for (int i = brick.p1.x; i <= brick.p2.x; i++) {
+                    if (grid[brick.p1.z+1][brick.p1.y][i] == 1) {
+                        canMove = false;
+                        break;
+                    }
+                }
+
+                if (canMove) {
+                    for (int i = brick.p1.x; i <= brick.p2.x; i++) {
+                        grid[brick.p1.z][brick.p1.y][i] = 0;
+                        grid[brick.p1.z+1][brick.p1.y][i] = 1;
+                    }
+                    brick.p1.z++;
+                    brick.p2.z++;
+                    it = bricks.begin();
+                    moved = true;
+                    continue;
+                }
+            }
+        } else {
+            int lowestZ = std::max(brick.p1.z, brick.p2.z);
+            if (lowestZ == numZ - 1) {
+                it++;
+                continue;
+            }
+
+            // check if we can move down
+            if (grid[lowestZ+1][brick.p1.y][brick.p1.x] == 0) {
+                grid[lowestZ][brick.p1.y][brick.p1.x] = 0;
+                grid[lowestZ+1][brick.p1.y][brick.p1.x] = 1;
+                brick.p1.z++;
+                brick.p2.z++;
+                it = bricks.begin();
+                moved = true;
+                continue;
             }
         }
+        ++it;
+    }
 
-    } while (!stable);
+    return moved;
 }
 
 int first() {
@@ -97,7 +170,7 @@ int first() {
     newfile.open("input.txt", std::ios::in);
     if (newfile.is_open()) {
 
-        std::vector<std::vector<std::vector<int>>> grid;
+        GridVector grid;
 
         int maxX = 0;
         int maxY = 0;
@@ -146,7 +219,7 @@ int first() {
             }
         }
 
-        std::set<Brick> bricks;
+        std::list<Brick> bricks;
 
         while (getline(newfile, line)) {
             auto squigle = line.find('~');
@@ -167,7 +240,7 @@ int first() {
             auto y2 = std::stoi(second.substr(comma3 + 1, comma4 - comma3 - 1));
             auto z2 = std::stoi(second.substr(comma4 + 1));
 
-            bricks.insert(Brick(Point{x, y, z}, Point{x2, y2, z2}));
+            bricks.insert(bricks.end(), Brick(Point{x, y, z}, Point{x2, y2, z2}));
             for (int i = z; i <= z2; i++) {
                 for (int j = y; j <= y2; j++) {
                     for (int k = x; k <= x2; k++) {
@@ -177,7 +250,34 @@ int first() {
             }
         }
 
-        fall(grid, bricks);)
+        fall(grid, bricks);
+
+        int count = 0;
+        for (auto& brick : bricks) {
+            std::list<Brick> brickCopy;
+            auto gridCopy = grid;
+            for (auto& copy : bricks) {
+                if (copy == brick) {
+                    // remove from grid
+                    for (int i = copy.p1.z; i <= copy.p2.z; i++) {
+                        for (int j = copy.p1.y; j <= copy.p2.y; j++) {
+                            for (int k = copy.p1.x; k <= copy.p2.x; k++) {
+                                gridCopy[i][j][k] = 0;
+                            }
+                        }
+                    }
+                } else {
+                    brickCopy.push_back(copy);
+                }
+            }
+
+            bool canFall = fall(gridCopy, brickCopy);
+            if (!canFall) {
+                count++;
+            }
+        }
+
+        std::cout << count << std::endl;
           
         newfile.close();
     }
