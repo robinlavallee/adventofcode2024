@@ -55,10 +55,11 @@ struct Point {
 };
 
 struct Brick {
+    int id;
     Point p1;
     Point p2;
 
-    Brick(Point p1, Point p2) : p1(p1), p2(p2) {
+    Brick(Point p1, Point p2, int id_) : p1(p1), p2(p2), id(id_) {
         // always put p1 as the smallest
         if (p1 > p2) {
             std::swap(this->p1, this->p2);
@@ -89,9 +90,10 @@ struct Brick {
 
 using GridVector = std::vector<std::vector<std::vector<int>>>;
 
-// return true if anything moved
-bool fall(GridVector& grid, std::list<Brick>& bricks) {
-    bool moved=false;
+// return how many bricks would move
+int fall(GridVector& grid, std::list<Brick>& bricks) {
+    std::set<int> movedBricks;
+
     int numZ = grid.size();
     int numY = grid[0].size();
     int numX = grid[0][0].size();
@@ -129,7 +131,7 @@ bool fall(GridVector& grid, std::list<Brick>& bricks) {
                 brick.p1.z--;
                 brick.p2.z--;
                 it = bricks.begin();
-                moved = true;
+                movedBricks.insert(brick.id);
                 continue;
             }
 
@@ -149,17 +151,17 @@ bool fall(GridVector& grid, std::list<Brick>& bricks) {
                 brick.p1.z--;
                 brick.p2.z--;
                 it = bricks.begin();
-                moved = true;
+                movedBricks.insert(brick.id);
                 continue;
             }
         }
         ++it;
     }
 
-    return moved;
+    return movedBricks.size();
 }
 
-int first() {
+int solve(bool countBricks) {
     std::fstream newfile;
     newfile.open("input.txt", std::ios::in);
     if (newfile.is_open()) {
@@ -215,7 +217,9 @@ int first() {
 
         std::list<Brick> bricks;
 
+        int id = -1;
         while (getline(newfile, line)) {
+            id++;
             auto squigle = line.find('~');
             auto first = line.substr(0, squigle);
             auto second = line.substr(squigle + 1);
@@ -234,7 +238,7 @@ int first() {
             auto y2 = std::stoi(second.substr(comma3 + 1, comma4 - comma3 - 1));
             auto z2 = std::stoi(second.substr(comma4 + 1));
 
-            bricks.insert(bricks.end(), Brick(Point{x, y, z}, Point{x2, y2, z2}));
+            bricks.insert(bricks.end(), Brick(Point{x, y, z}, Point{x2, y2, z2}, id));
             for (int i = z; i <= z2; i++) {
                 for (int j = y; j <= y2; j++) {
                     for (int k = x; k <= x2; k++) {
@@ -265,28 +269,28 @@ int first() {
                 }
             }
 
-            bool canFall = fall(gridCopy, brickCopy);
-            if (!canFall) {
-                count++;
+            int numFall = fall(gridCopy, brickCopy);
+            if (countBricks) {
+                count += numFall;
+            } else {
+                count += numFall > 0 ? 0 : 1;
             }
         }
 
         std::cout << count << std::endl;
-          
         newfile.close();
     }
+}
 
+
+int first() {
+    solve(false);
     return 0;
 }
 
 
 int second() {
-    std::fstream newfile;
-    newfile.open("input.txt", std::ios::in);
-    if (newfile.is_open()) {
-        newfile.close();
-    }
-
+    solve(true);
     return 0;
 }
 
