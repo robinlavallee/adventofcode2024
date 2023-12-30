@@ -122,7 +122,6 @@ int first() {
         }
 
         std::set<int> groupA;
-        std::set<int> groupB;
         std::set<int> toVisit;
         std::set<std::pair<int, int>> separatorEdges;
 
@@ -157,7 +156,6 @@ int first() {
 
                     allPaths.insert(allPaths.end(), path.begin(), path.end());
 
-                    // remove the edges from the matrix
                     for (auto& edge : path) {
                         matrix[edge.first][edge.second] = false;
                         matrix[edge.second][edge.first] = false;
@@ -174,7 +172,6 @@ int first() {
                 }
 
                 if (path.size() == 0) {
-                    groupB.insert(i);
                     separatorEdges.insert({node, i});
 
                     matrix[node][i] = false;
