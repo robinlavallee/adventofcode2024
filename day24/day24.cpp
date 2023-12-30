@@ -9,8 +9,8 @@
 #include <set>
 
 struct Point {
-    int x;
-    int y;
+    long long  x;
+    long long y;
 };
 
 struct Formula {
@@ -18,9 +18,15 @@ struct Formula {
     double b;
 };
 
+struct Velocity {
+    int x;
+    int y;
+};
+
 struct Hailstone {
     Point p;
     Formula f;
+    Velocity v;
 };
 
 std::vector<Hailstone> stones;
@@ -42,13 +48,13 @@ int first() {
             right += ",";
 
             auto comma = left.find(",");
-            auto x = std::stoi(left.substr(0, comma));
+            auto x = std::stoll(left.substr(0, comma));
             left = left.substr(comma + 1);
             comma = left.find(",");
-            auto y = std::stoi(left.substr(0, comma));
+            auto y = std::stoll(left.substr(0, comma));
             left = left.substr(comma + 1);
             comma = left.find(",");
-            auto z = std::stoi(left.substr(0, comma));
+            auto z = std::stoll(left.substr(0, comma));
 
             Hailstone stone;
             stone.p = {x, y};
@@ -62,6 +68,8 @@ int first() {
             comma = right.find(",");
             auto vz = std::stoi(right.substr(0, comma));
 
+            stone.v = {vx, vy};
+
             // y = mx + b
             // y - b = mx
             // (y - b) / x = m
@@ -74,8 +82,8 @@ int first() {
             stones.push_back(stone);
         }
 
-        double min = 7;
-        double max = 27;
+        double min = 200000000000000;
+        double max = 400000000000000;
 
         unsigned int count = 0;
         for (int i = 0; i < stones.size(); i++) {
@@ -84,23 +92,34 @@ int first() {
                 // y = m1x + b1
                 // y = m2x + b2
 
+                //std::cout << "Hailstone " << i << " and " << j << std::endl;
+
                 double left = stones[i].f.b - stones[j].f.b;
                 double right = stones[j].f.m - stones[i].f.m;
                 if (abs(right) < 0.0000001) {
+                    //std::cout << "Parallel" << std::endl << std::endl;
                     continue;
                 }
                 
                 double x = left / right;
                 double y = stones[i].f.m * x + stones[i].f.b;
 
-                std::cout << "Stones " << i << " and " << j << " intersect at (" << x << ", " << y << ")" << std::endl;
+                //std::cout << "Stones intersect at (" << x << ", " << y << ")" << std::endl;
 
                 if (x >= min && x <= max && y >= min && y <= max) {
-                    std::cout << "Within test area" << std::endl;
-                    count++;
+                    if ((x > stones[i].p.x && stones[i].v.x < 0) || (y > stones[i].p.y && stones[i].v.y < 0) || (x < stones[i].p.x && stones[i].v.x > 0) || (y < stones[i].p.y && stones[i].v.y > 0)) {
+                        //std::cout << "In the past for first stone" << std::endl;
+                    } else if ((x > stones[j].p.x && stones[j].v.x < 0) || (y > stones[j].p.y && stones[j].v.y < 0) || (x < stones[j].p.x && stones[j].v.x > 0) || (y < stones[j].p.y && stones[j].v.y > 0)) {
+                        //std::cout << "In the past for second stone" << std::endl;
+                    } else {
+                        //std::cout << "Within test area" << std::endl;
+                        count++;
+                    }
                 } else {
-                    std::cout << "Outside test area" << std::endl;
+                    //std::cout << "Outside test area" << std::endl;
                 }
+
+                //std::cout << std::endl;
             }
         }
 
