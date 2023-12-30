@@ -8,32 +8,52 @@
 #include <vector>
 #include <set>
 
-// We will use a matrix to represent the graph
-// we will associate each node with a number, starting from 0
-// so it's easier to read the file twice and create the matrix
+using Path = std::list<std::pair<int, int>>;
 
-std::map<std::string, int> nameToIndex;
+Path findShortestPath(std::vector<std::vector<bool>>& matrix, int start, int end) {
+    std::list<std::pair<int, int>> path;
 
-int solve(std::vector<std::vector<bool>>& matrix) {
     std::set<int> visited;
+    std::set<int> toVisit;
+    std::map<int, int> parent;
 
-    std::list<int> queue;
-    queue.push_back(0);
-    visited.insert(0);
+    toVisit.insert(start);
+    visited.insert(start);
 
-    while (!queue.empty()) {
-        auto node = queue.front();
-        queue.pop_front();
+    while (!toVisit.empty()) {
+        auto node = *toVisit.begin();
+        toVisit.erase(node);
 
         for (int i = 0; i < matrix.size(); i++) {
-            if (matrix[node][i] && !visited.count(i)) {
+            if (node == i) {
+                continue;
+            }
+
+            if (matrix[node][i]) {
+                if (visited.count(i)) {
+                    continue;
+                }
+
+                toVisit.insert(i);
                 visited.insert(i);
-                queue.push_back(i);
+                parent[i] = node;
+
+                if (i == end) {
+                    break;
+                }
             }
         }
     }
 
-    return visited.size();
+    if (visited.count(end)) {
+        auto current = end;
+        while (current != start) {
+            path.push_front({parent[current], current});
+            current = parent[current];
+        }
+    }
+
+    return path;
 }
 
 int first() {
@@ -41,6 +61,8 @@ int first() {
     newfile.open("input.txt", std::ios::in);
 
     std::vector<std::vector<bool>> matrix;
+    std::map<std::string, int> nameToIndex;
+
     if (newfile.is_open()) {
         std::string line;
         int index = 0;
@@ -99,51 +121,73 @@ int first() {
             }
         }
 
-        for (int source1 = 0; source1 < matrix.size(); source1++) {
-            for (int dest1 = source1 + 1; dest1 < matrix.size(); dest1++) {
-                if (!matrix[source1][dest1]) {
+        std::set<int> groupA;
+        std::set<int> groupB;
+        std::set<int> toVisit;
+        std::set<std::pair<int, int>> separatorEdges;
+
+        groupA.insert(0);
+        toVisit.insert(0);
+        
+        while (!toVisit.empty()) {
+            auto node = *toVisit.begin();
+            toVisit.erase(node);
+
+            for (int i = 0; i < matrix.size(); i++) {
+                if (node == i) {
                     continue;
                 }
 
-                for (int source2 = source1; source2 < matrix.size(); source2++) {
-                    for (int dest2 = source2 + 1; dest2 < matrix.size(); dest2++) {
-                        if (!matrix[source2][dest2]) {
-                            continue;
-                        }
+                if (!matrix[node][i]) {
+                    continue;
+                }
 
-                        for (int source3 = source2; source3 < matrix.size(); source3++) {
-                            for (int dest3 = source3 + 1; dest3 < matrix.size(); dest3++) {
-                                if (!matrix[source3][dest3]) {
-                                    continue;
-                                }
+                if (groupA.count(i)) {
+                    continue;
+                }
 
-                                matrix[source1][dest1] = false;
-                                matrix[dest1][source1] = false;
-                                matrix[source2][dest2] = false;
-                                matrix[dest2][source2] = false;
-                                matrix[source3][dest3] = false;
-                                matrix[dest3][source3] = false;
+                Path allPaths;
+                int numLoops = 3 - separatorEdges.size();
+                while (numLoops > 0) {
+                    auto path = findShortestPath(matrix, node, i);
 
-                                int visited = solve(matrix);
-
-                                if (visited != matrix.size()) {
-                                    int solution = visited * (matrix.size() - visited);
-                                    std::cout << solution << std::endl;
-                                    return 0;
-                                }
-
-                                matrix[source1][dest1] = true;
-                                matrix[dest1][source1] = true;
-                                matrix[source2][dest2] = true;
-                                matrix[dest2][source2] = true;
-                                matrix[source3][dest3] = true;
-                                matrix[dest3][source3] = true;
-                            }
-                        }
+                    if (path.size() == 0) {
+                        break;
                     }
+
+                    allPaths.insert(allPaths.end(), path.begin(), path.end());
+
+                    // remove the edges from the matrix
+                    for (auto& edge : path) {
+                        matrix[edge.first][edge.second] = false;
+                        matrix[edge.second][edge.first] = false;
+                    }
+
+                    numLoops--;
+                }
+
+                auto path = findShortestPath(matrix, node, i);
+
+                for (auto& edge : allPaths) {
+                    matrix[edge.first][edge.second] = true;
+                    matrix[edge.second][edge.first] = true;
+                }
+
+                if (path.size() == 0) {
+                    groupB.insert(i);
+                    separatorEdges.insert({node, i});
+
+                    matrix[node][i] = false;
+                    matrix[i][node] = false;
+                } else {
+                    groupA.insert(i);
+                    toVisit.insert(i);
                 }
             }
         }
+
+        int result = groupA.size() * (matrix.size() - groupA.size());
+        std::cout << result << std::endl;
 
         newfile.close();
     }
