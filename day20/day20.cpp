@@ -13,6 +13,7 @@ struct Wire {
     Module* prevConnector = nullptr;
     Module* nextConnector = nullptr;
     bool pulse = false;
+    bool active = false;
 };
 
 struct PulseStats {
@@ -41,16 +42,27 @@ struct FlipFlopModule : public Module {
     }
 
     void update(Context& context) override {
-        // TODO: not sure how to handle multiple inputs for flip flops
         for (auto& input : inputs) {
-            if (!input->pulse) {
+            if (input->active && !input->pulse) {
                 state = !state;
                 for (auto& output : outputs) {
                     output->pulse = state;
+                    output->active = true;
+                    std::cout << "FlipFlop " << name << " to " << state << std::endl;
+                    std::cout << "Flipflop " << name << " sending " << (output->pulse ? "high" : "low") << " pulse to " << output->nextConnector->name << std::endl;
+                    if (output->pulse) {
+                        context.pulseStats.highPulseCount++;
+                    } else {
+                        context.pulseStats.lowPulseCount++;
+                    }
                     context.activeWires.insert(output);
                 }
-                return;
+                break;
             }
+        }
+
+        for (auto& input : inputs) {
+            input->active = false;
         }
     }
 };
@@ -65,14 +77,30 @@ struct NandModule : public Module {
             if (!input->pulse) {
                 for (auto& output : outputs) {
                     output->pulse = true;
+                    output->active = true;
+
+                    std::cout << "Nand " << name << " sending " << (output->pulse ? "high" : "low") << " pulse to " << output->nextConnector->name << std::endl;
+                    context.pulseStats.highPulseCount++;
                     context.activeWires.insert(output);
+                }
+
+                for (auto& input : inputs) {
+                    input->active = false;
                 }
                 return;
             }
         }
 
+        for (auto& input : inputs) {
+            input->active = false;
+        }
+
         for (auto& output : outputs) {
+            output->active = true;
             output->pulse = false;
+
+            std::cout << "Nand " << name << " sending " << (output->pulse ? "high" : "low") << " pulse to " << output->nextConnector->name << std::endl;
+            context.pulseStats.lowPulseCount++;
             context.activeWires.insert(output);
         }
     }
@@ -86,7 +114,15 @@ struct BroadcastModule : public Module {
     void update(Context& context) override {
         for (auto& output : outputs) {
             output->pulse = false;
+            output->active = true;
+
+            std::cout << "Broadcast " << name << " sending " << (output->pulse ? "high" : "low") << " pulse to " << output->nextConnector->name << std::endl;
+            context.pulseStats.lowPulseCount++;
             context.activeWires.insert(output);
+        }
+
+        for (auto& input : inputs) {
+            input->active = false;
         }
     }
 };
@@ -98,7 +134,23 @@ struct ButtonModule : public Module {
 
     void update(Context& context) override {
         outputs[0]->pulse = false;
+        outputs[0]->active = true;
+
+        std::cout << "Button " << name << " sending " << (outputs[0]->pulse ? "high" : "low") << " pulse to " << outputs[0]->nextConnector->name << std::endl;
+        context.pulseStats.lowPulseCount++;
         context.activeWires.insert(outputs[0]);
+    }
+};
+
+struct OutputModule : public Module {
+    OutputModule(std::string name) {
+        this->name = "output";
+    }
+
+    void update(Context& context) override {
+        for (auto& input : inputs) {
+            input->active = false;
+        }
     }
 };
 
@@ -177,6 +229,11 @@ int first() {
 
                 Module* module = modules[shortModuleName];
                 Module* outputModule = modules[outputModuleName];
+
+                if (!outputModule) {
+                    outputModule = new OutputModule(outputModuleName);
+                    modules[outputModuleName] = outputModule;
+                }
 
                 Wire* wire = new Wire();
                 wire->prevConnector = module;
