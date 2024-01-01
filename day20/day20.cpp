@@ -7,6 +7,8 @@
 #include <vector>
 #include <set>
 
+struct Module;
+
 struct Wire {
     Module* prevConnector = nullptr;
     Module* nextConnector = nullptr;
@@ -20,17 +22,16 @@ struct PulseStats {
 
 struct Context {
     PulseStats pulseStats;
+    std::set<Wire*> activeWires;
 };
 
 struct Module {
     std::string name;
     std::vector<Wire*> inputs;
-    std::vector<Wire*> output;
+    std::vector<Wire*> outputs;
 
     virtual void update(Context& context) = 0;
 };
-
-std::set<Wire*> activeWires;
 
 struct FlipFlopModule : public Module {
     bool state = false;
@@ -40,6 +41,17 @@ struct FlipFlopModule : public Module {
     }
 
     void update(Context& context) override {
+        // TODO: not sure how to handle multiple inputs for flip flops
+        for (auto& input : inputs) {
+            if (!input->pulse) {
+                state = !state;
+                for (auto& output : outputs) {
+                    output->pulse = state;
+                    context.activeWires.insert(output);
+                }
+                return;
+            }
+        }
     }
 };
 
@@ -49,6 +61,20 @@ struct NandModule : public Module {
     }
 
     void update(Context& context) override {
+        for (auto& input : inputs) {
+            if (!input->pulse) {
+                for (auto& output : outputs) {
+                    output->pulse = true;
+                    context.activeWires.insert(output);
+                }
+                return;
+            }
+        }
+
+        for (auto& output : outputs) {
+            output->pulse = false;
+            context.activeWires.insert(output);
+        }
     }
 };
 
@@ -58,7 +84,10 @@ struct BroadcastModule : public Module {
     }
 
     void update(Context& context) override {
-
+        for (auto& output : outputs) {
+            output->pulse = false;
+            context.activeWires.insert(output);
+        }
     }
 };
 
@@ -68,9 +97,25 @@ struct ButtonModule : public Module {
     }
 
     void update(Context& context) override {
-
+        outputs[0]->pulse = false;
+        context.activeWires.insert(outputs[0]);
     }
 };
+
+unsigned long long computeFlipFlopHash(std::map<std::string, Module*>& modules) {
+    unsigned long long hash = 0;
+    for (auto& module : modules) {
+        if (module.second->name[0] == '%') {
+            auto flipFlop = (FlipFlopModule*)module.second;
+            hash = hash << 1;
+            if (flipFlop->state) {
+                hash |= 1;
+            }
+        }
+    }
+
+    return hash;
+}
 
 int first() {
     std::fstream newfile;
@@ -93,20 +138,21 @@ int first() {
             auto arrow = line.find("->");
             auto left = line.substr(0, arrow - 1);
 
-            std::string moduleName = left;
+            std::string fullModuleName = left;
+            std::string shortModuleName = fullModuleName;
             if (left[0] == '%' || left[0] == '&') {
-                moduleName = moduleName.substr(1);
+                shortModuleName = shortModuleName.substr(1);
             }
 
             if (left[0] == '%') {
-                auto module = new FlipFlopModule(moduleName);
-                modules[moduleName] = module;
+                auto module = new FlipFlopModule(fullModuleName);
+                modules[shortModuleName] = module;
             } else if (left[0] == '&') {
-                auto module = new NandModule(moduleName);
-                modules[moduleName] = module;
+                auto module = new NandModule(fullModuleName);
+                modules[shortModuleName] = module;
             } else {
-                auto module = new BroadcastModule(moduleName);
-                modules[moduleName] = module;
+                auto module = new BroadcastModule(fullModuleName);
+                modules[shortModuleName] = module;
             }
         }
 
@@ -117,50 +163,90 @@ int first() {
             auto arrow = line.find("->");
             auto left = line.substr(0, arrow - 1);
 
-            std::string moduleName = left;
+            std::string shortModuleName = left;
             if (left[0] == '%' || left[0] == '&') {
-                moduleName = moduleName.substr(1);
+                shortModuleName = shortModuleName.substr(1);
             }
 
             auto right = line.substr(arrow + 3);
-            right += ",";
+            right += ", ";
 
-            auto comma = right.find(",");
+            auto comma = right.find(", ");
             while (comma != std::string::npos) {
                 auto outputModuleName = right.substr(0, comma);
 
-                Module* module = modules[moduleName];
+                Module* module = modules[shortModuleName];
                 Module* outputModule = modules[outputModuleName];
 
                 Wire* wire = new Wire();
                 wire->prevConnector = module;
                 wire->nextConnector = outputModule;
 
-                module->output.push_back(wire);
+                module->outputs.push_back(wire);
                 outputModule->inputs.push_back(wire);
 
-                right = right.substr(comma + 1);
-                comma = right.find(",");
+                right = right.substr(comma + 2);
+                comma = right.find(", ");
             }
         }
 
-        // create the special "button" module
         auto button = new ButtonModule();
         modules["button"] = button;
         auto buttonWire = new Wire();
         buttonWire->prevConnector = button;
         buttonWire->nextConnector = modules["broadcaster"];
-        button->output.push_back(buttonWire);
+        button->outputs.push_back(buttonWire);
 
-        // look at all flipflop state since they make a global stats, and check when we loop back so that we can optimize
         int numCycles = 1000;
-        // figure out how many flipflops modules there are
+        
         std::map<unsigned long long, PulseStats> stateToPulseStatsMap;
         PulseStats totalPulseStats;
 
+        auto hash = computeFlipFlopHash(modules);
+        auto lastHash = hash;
+        std::map<unsigned long long, unsigned long long> hashSequence;
+        while (stateToPulseStatsMap.find(hash) == stateToPulseStatsMap.end() && numCycles > 0) {
+            Context context;
+            button->update(context);
 
-        button->update();
+            std::set<Module*> modulesToUpdate;
+            do {
+                modulesToUpdate.clear();
+                while (context.activeWires.size() > 0) {
+                    auto wire = *context.activeWires.begin();
+                    context.activeWires.erase(wire);
+                    modulesToUpdate.insert(wire->nextConnector);                    
+                }
 
+                for (auto& module : modulesToUpdate) {
+                    module->update(context);
+                }
+            } while (modulesToUpdate.size() > 0);
+
+            stateToPulseStatsMap[hash] = context.pulseStats;
+            totalPulseStats.lowPulseCount += context.pulseStats.lowPulseCount;
+            totalPulseStats.highPulseCount += context.pulseStats.highPulseCount;
+
+            lastHash = hash;
+            hash = computeFlipFlopHash(modules);
+            hashSequence[lastHash] = hash;
+            numCycles--;
+        }
+
+        if (numCycles > 0) {
+            unsigned long long moreLargeCyclesLeft = numCycles / stateToPulseStatsMap.size();
+
+            totalPulseStats.lowPulseCount += totalPulseStats.lowPulseCount * moreLargeCyclesLeft;
+            totalPulseStats.highPulseCount += totalPulseStats.highPulseCount * moreLargeCyclesLeft;
+        }
+
+        numCycles = numCycles % stateToPulseStatsMap.size();
+        while (numCycles > 0) {
+            totalPulseStats.lowPulseCount += stateToPulseStatsMap[hash].lowPulseCount;
+            totalPulseStats.highPulseCount += stateToPulseStatsMap[hash].highPulseCount;
+            hash = hashSequence[hash];
+            numCycles--;
+        }
 
         newfile.close();
 
