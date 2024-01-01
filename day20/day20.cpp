@@ -13,13 +13,24 @@ struct Wire {
     bool pulse = false;
 };
 
+struct PulseStats {
+    int lowPulseCount = 0;
+    int highPulseCount = 0;
+};
+
+struct Context {
+    PulseStats pulseStats;
+};
+
 struct Module {
     std::string name;
     std::vector<Wire*> inputs;
     std::vector<Wire*> output;
 
-    virtual void update() = 0;
+    virtual void update(Context& context) = 0;
 };
+
+std::set<Wire*> activeWires;
 
 struct FlipFlopModule : public Module {
     bool state = false;
@@ -28,7 +39,7 @@ struct FlipFlopModule : public Module {
         this->name = name;
     }
 
-    void update() override {
+    void update(Context& context) override {
     }
 };
 
@@ -37,7 +48,7 @@ struct NandModule : public Module {
         this->name = name;
     }
 
-    void update() override {
+    void update(Context& context) override {
     }
 };
 
@@ -46,7 +57,7 @@ struct BroadcastModule : public Module {
         this->name = name;
     }
 
-    void update() override {
+    void update(Context& context) override {
 
     }
 };
@@ -56,7 +67,7 @@ struct ButtonModule : public Module {
         this->name = "button";
     }
 
-    void update() override {
+    void update(Context& context) override {
 
     }
 };
@@ -141,9 +152,20 @@ int first() {
         buttonWire->nextConnector = modules["broadcaster"];
         button->output.push_back(buttonWire);
 
-                
+        // look at all flipflop state since they make a global stats, and check when we loop back so that we can optimize
+        int numCycles = 1000;
+        // figure out how many flipflops modules there are
+        std::map<unsigned long long, PulseStats> stateToPulseStatsMap;
+        PulseStats totalPulseStats;
+
+
+        button->update();
+
 
         newfile.close();
+
+        std::cout << "Low Pulse: " << totalPulseStats.lowPulseCount << " High Pulse: " << totalPulseStats.highPulseCount << std::endl;
+        std::cout << "Multiplication: " << totalPulseStats.lowPulseCount * totalPulseStats.highPulseCount << std::endl;
     }
 
     return 0;
