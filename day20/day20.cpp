@@ -52,7 +52,7 @@ struct FlipFlopModule : public Module {
     void update(Context& context, Pulse& pulse) override {
         if (pulse.type == PulseType::Low) {
             state = !state;
-            std::cout << "FlipFlop " << name << " to " << state << std::endl;
+            //std::cout << "FlipFlop " << name << " to " << state << std::endl;
             for (auto& output : outputs) {
                 Pulse pulse;
                 pulse.type = state ? PulseType::High : PulseType::Low;               
@@ -63,7 +63,7 @@ struct FlipFlopModule : public Module {
                 } else {
                     context.pulseStats.lowPulseCount++;
                 }
-                std::cout << "Flipflop " << name << " sending " << (pulse.type == PulseType::High ? "high" : "low") << " pulse to " << output << std::endl;
+                //std::cout << "Flipflop " << name << " sending " << (pulse.type == PulseType::High ? "high" : "low") << " pulse to " << output << std::endl;
                 context.activePulses.push(pulse);
             }
         }
@@ -76,12 +76,10 @@ struct NandModule : public Module {
     }
 
     void update(Context& context, Pulse& pulse) override {
+        inputs[pulse.from] = pulse.type;
+
         bool allHigh = true;
         for (auto& input : inputs) {
-            if (pulse.from == input.first) {
-                input.second = pulse.type;
-            }
-
             if (input.second == PulseType::Low) {
                 allHigh = false;
                 break;
@@ -98,7 +96,13 @@ struct NandModule : public Module {
             } else {
                 context.pulseStats.highPulseCount++;
             }
-            std::cout << "Nand " << name << " sending " << (pulse.type == PulseType::High ? "high" : "low") << " pulse to " << pulse.destination << std::endl;
+
+            if (pulse.type == PulseType::High && pulse.from == "zm") {
+                int k;
+                k = 2;
+            }
+
+            //std::cout << "Nand " << name << " sending " << (pulse.type == PulseType::High ? "high" : "low") << " pulse to " << pulse.destination << std::endl;
             context.activePulses.push(pulse);
         }
     }
@@ -115,12 +119,12 @@ struct BroadcastModule : public Module {
             pulse.type = PulseType::Low;
             pulse.from = name;
             pulse.destination = output;
-            std::cout << "Broadcast " << name << " sending " << (pulse.type == PulseType::High ? "high" : "low") << " pulse to " << pulse.destination << std::endl;
+            //std::cout << "Broadcast " << name << " sending " << (pulse.type == PulseType::High ? "high" : "low") << " pulse to " << pulse.destination << std::endl;
             context.pulseStats.lowPulseCount++;
             context.activePulses.push(pulse);
         }
     }
-};
+}; 
 
 struct ButtonModule : public Module {
     ButtonModule() {
@@ -133,7 +137,7 @@ struct ButtonModule : public Module {
         outputPulse.from = name;
         outputPulse.destination = "broadcaster";
 
-        std::cout << "Button " << name << " sending " << (outputPulse.type == PulseType::High ? "high" : "low") << " pulse to " << outputPulse.destination << std::endl;
+        //std::cout << "Button " << name << " sending " << (outputPulse.type == PulseType::High ? "high" : "low") << " pulse to " << outputPulse.destination << std::endl;
         context.pulseStats.lowPulseCount++;
         context.activePulses.push(outputPulse);
     }
@@ -163,7 +167,7 @@ unsigned long long computeFlipFlopHash(std::map<std::string, Module*>& modules) 
     return hash;
 }
 
-int first() {
+int solve(bool part2) {
     std::fstream newfile;
     newfile.open("input.txt", std::ios::in);
 
@@ -240,15 +244,15 @@ int first() {
         modules["button"] = button;
         button->outputs.push_back("broadcaster");
 
-        int numCycles = 1000;
+        int numCycles = part2 ? INT_MAX : 1000;
+        int numCyclesDone = 0;
         
-        std::map<unsigned long long, PulseStats> stateToPulseStatsMap;
         PulseStats totalPulseStats;
 
-        auto hash = computeFlipFlopHash(modules);
-        auto lastHash = hash;
-        std::map<unsigned long long, unsigned long long> hashSequence;
-        while (stateToPulseStatsMap.find(hash) == stateToPulseStatsMap.end() && numCycles > 0) {
+        std::map<std::string, unsigned long long> zeros;
+
+        while (numCycles > 0) {
+            numCyclesDone++;
             Context context;
 
             Pulse initialPulse;
@@ -262,31 +266,35 @@ int first() {
                 context.activePulses.pop();
                 
                 auto module = modules[activePulse.destination];
+
+                if (activePulse.destination == "zr") {
+                    if (activePulse.type == PulseType::High) {
+                        zeros[activePulse.from] = numCyclesDone;
+                    }
+
+                    if (part2 && zeros.size() == 4) {
+                        unsigned long long multiplication = 0;
+                        for (auto& zero : zeros) {
+                            if (multiplication == 0) {
+                                multiplication = zero.second;
+                            } else {
+                                multiplication *= zero.second;
+                            }
+                            std::cout << zero.first << " " << zero.second << std::endl;
+                        }
+                        std::cout << "Multiplication: " << multiplication << std::endl;
+                        return 0;
+                    }
+                }
+
                 module->update(context, activePulse);
             }
 
-            stateToPulseStatsMap[hash] = context.pulseStats;
             totalPulseStats.lowPulseCount += context.pulseStats.lowPulseCount;
             totalPulseStats.highPulseCount += context.pulseStats.highPulseCount;
 
-            lastHash = hash;
-            hash = computeFlipFlopHash(modules);
-            hashSequence[lastHash] = hash;
-            numCycles--;
-        }
+            // cm, xf, gc, sz
 
-        if (numCycles > 0) {
-            unsigned long long moreLargeCyclesLeft = numCycles / stateToPulseStatsMap.size();
-
-            totalPulseStats.lowPulseCount += totalPulseStats.lowPulseCount * moreLargeCyclesLeft;
-            totalPulseStats.highPulseCount += totalPulseStats.highPulseCount * moreLargeCyclesLeft;
-        }
-
-        numCycles = numCycles % stateToPulseStatsMap.size();
-        while (numCycles > 0) {
-            totalPulseStats.lowPulseCount += stateToPulseStatsMap[hash].lowPulseCount;
-            totalPulseStats.highPulseCount += stateToPulseStatsMap[hash].highPulseCount;
-            hash = hashSequence[hash];
             numCycles--;
         }
 
@@ -299,15 +307,12 @@ int first() {
     return 0;
 }
 
+int first() {
+    return solve(false);
+}
+
 int second() {
-    std::fstream newfile;
-    newfile.open("input.txt", std::ios::in);
-    if (newfile.is_open()) {
-
-        newfile.close();
-    }
-
-    return 0;
+    return solve(true);
 }
 
 
