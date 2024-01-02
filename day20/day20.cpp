@@ -6,38 +6,41 @@
 #include <list>
 #include <vector>
 #include <set>
+#include <queue>
 
 struct Module;
+struct Context;
 
-enum class Pulse {
-    None,
+enum class PulseType {
     Low,
     High,
 };
 
-struct Wire {
-    Module* prevConnector = nullptr;
-    Module* nextConnector = nullptr;
-    Pulse pulse = Pulse::None;
+struct PulseStats {
+    unsigned long long lowPulseCount = 0;
+    unsigned long long highPulseCount = 0;
 };
 
-struct PulseStats {
-    int lowPulseCount = 0;
-    int highPulseCount = 0;
+struct Pulse {
+    PulseType type = PulseType::Low;
+    std::string from;
+    std::string destination;
 };
 
 struct Context {
     PulseStats pulseStats;
-    std::set<Wire*> activeWires;
+    std::queue<Pulse> activePulses;
 };
 
 struct Module {
     std::string name;
-    std::vector<Wire*> inputs;
-    std::vector<Wire*> outputs;
 
-    virtual void update(Context& context) = 0;
+    std::map<std::string, PulseType> inputs;
+    std::vector<std::string> outputs;
+
+    virtual void update(Context& context, Pulse& pulse) = 0;
 };
+
 
 struct FlipFlopModule : public Module {
     bool state = false;
@@ -46,28 +49,23 @@ struct FlipFlopModule : public Module {
         this->name = name;
     }
 
-    void update(Context& context) override {
-        for (auto& input : inputs) {
-            if (input->pulse == Pulse::Low) {
-                state = !state;
-                for (auto& output : outputs) {
-                    if (state) {
-                        output->pulse = Pulse::High;
-                        context.pulseStats.highPulseCount++;
-                    } else {
-                        output->pulse = Pulse::Low;
-                        context.pulseStats.lowPulseCount++;
-                    }
-                    //std::cout << "FlipFlop " << name << " to " << state << std::endl;
-                    //std::cout << "Flipflop " << name << " sending " << (output->pulse ? "high" : "low") << " pulse to " << output->nextConnector->name << std::endl;
-                    context.activeWires.insert(output);
+    void update(Context& context, Pulse& pulse) override {
+        if (pulse.type == PulseType::Low) {
+            state = !state;
+            std::cout << "FlipFlop " << name << " to " << state << std::endl;
+            for (auto& output : outputs) {
+                Pulse pulse;
+                pulse.type = state ? PulseType::High : PulseType::Low;               
+                pulse.from = name.substr(1);
+                pulse.destination = output;
+                if (state) {
+                    context.pulseStats.highPulseCount++;
+                } else {
+                    context.pulseStats.lowPulseCount++;
                 }
-                break;
+                std::cout << "Flipflop " << name << " sending " << (pulse.type == PulseType::High ? "high" : "low") << " pulse to " << output << std::endl;
+                context.activePulses.push(pulse);
             }
-        }
-
-        for (auto& input : inputs) {
-            input->pulse = Pulse::None;
         }
     }
 };
@@ -77,43 +75,31 @@ struct NandModule : public Module {
         this->name = name;
     }
 
-    std::vector<Pulse> memories;
+    void update(Context& context, Pulse& pulse) override {
+        bool allHigh = true;
+        for (auto& input : inputs) {
+            if (pulse.from == input.first) {
+                input.second = pulse.type;
+            }
 
-    void update(Context& context) override {
-        // first make sure memories are pre-allocated
-        if (memories.empty()) {
-            memories.resize(inputs.size());
-            memories.assign(inputs.size(), Pulse::Low);
-        }
-
-        for (int i = 0; i < inputs.size(); i++) {
-            if (inputs[i]->pulse != Pulse::None)
-                memories[i] = inputs[i]->pulse;
-        }
-
-        bool oneLow = false;
-        for (auto& pulse: memories) {
-            if (pulse == Pulse::Low) {
-                for (auto& output : outputs) {
-                    output->pulse = Pulse::High;
-                    context.pulseStats.highPulseCount++;
-                    context.activeWires.insert(output);
-                }
-                oneLow = true;
+            if (input.second == PulseType::Low) {
+                allHigh = false;
                 break;
             }
         }
 
-        if (!oneLow) {
-            for (auto& output : outputs) {
-                output->pulse = Pulse::Low;
+        for (auto& output : outputs) {
+            Pulse pulse;
+            pulse.type = allHigh ? PulseType::Low : PulseType::High;
+            pulse.from = name.substr(1);
+            pulse.destination = output;
+            if (pulse.type == PulseType::Low) {
                 context.pulseStats.lowPulseCount++;
-                context.activeWires.insert(output);
+            } else {
+                context.pulseStats.highPulseCount++;
             }
-        }
-
-        for (auto& input : inputs) {
-            input->pulse = Pulse::None;
+            std::cout << "Nand " << name << " sending " << (pulse.type == PulseType::High ? "high" : "low") << " pulse to " << pulse.destination << std::endl;
+            context.activePulses.push(pulse);
         }
     }
 };
@@ -123,16 +109,15 @@ struct BroadcastModule : public Module {
         this->name = name;
     }
 
-    void update(Context& context) override {
+    void update(Context& context, Pulse& pulse) override {
         for (auto& output : outputs) {
-            output->pulse = Pulse::Low;
-            //std::cout << "Broadcast " << name << " sending " << (output->pulse ? "high" : "low") << " pulse to " << output->nextConnector->name << std::endl;
+            Pulse pulse;
+            pulse.type = PulseType::Low;
+            pulse.from = name;
+            pulse.destination = output;
+            std::cout << "Broadcast " << name << " sending " << (pulse.type == PulseType::High ? "high" : "low") << " pulse to " << pulse.destination << std::endl;
             context.pulseStats.lowPulseCount++;
-            context.activeWires.insert(output);
-        }
-
-        for (auto& input : inputs) {
-            input->pulse = Pulse::None;
+            context.activePulses.push(pulse);
         }
     }
 };
@@ -142,24 +127,24 @@ struct ButtonModule : public Module {
         this->name = "button";
     }
 
-    void update(Context& context) override {
-        outputs[0]->pulse = Pulse::Low;
+    void update(Context& context, Pulse& pulse) override {
+        Pulse outputPulse;
+        outputPulse.type = PulseType::Low;
+        outputPulse.from = name;
+        outputPulse.destination = "broadcaster";
 
-        //std::cout << "Button " << name << " sending " << (outputs[0]->pulse ? "high" : "low") << " pulse to " << outputs[0]->nextConnector->name << std::endl;
+        std::cout << "Button " << name << " sending " << (outputPulse.type == PulseType::High ? "high" : "low") << " pulse to " << outputPulse.destination << std::endl;
         context.pulseStats.lowPulseCount++;
-        context.activeWires.insert(outputs[0]);
+        context.activePulses.push(outputPulse);
     }
 };
 
 struct OutputModule : public Module {
     OutputModule(std::string name) {
-        this->name = "output";
+        this->name = name;
     }
 
-    void update(Context& context) override {
-        for (auto& input : inputs) {
-            input->pulse = Pulse::None;
-        }
+    void update(Context& context, Pulse& pulse) override {
     }
 };
 
@@ -243,12 +228,8 @@ int first() {
                     modules[outputModuleName] = outputModule;
                 }
 
-                Wire* wire = new Wire();
-                wire->prevConnector = module;
-                wire->nextConnector = outputModule;
-
-                module->outputs.push_back(wire);
-                outputModule->inputs.push_back(wire);
+                module->outputs.push_back(outputModuleName);
+                outputModule->inputs[shortModuleName] = PulseType::Low;
 
                 right = right.substr(comma + 2);
                 comma = right.find(", ");
@@ -257,10 +238,7 @@ int first() {
 
         auto button = new ButtonModule();
         modules["button"] = button;
-        auto buttonWire = new Wire();
-        buttonWire->prevConnector = button;
-        buttonWire->nextConnector = modules["broadcaster"];
-        button->outputs.push_back(buttonWire);
+        button->outputs.push_back("broadcaster");
 
         int numCycles = 1000;
         
@@ -272,21 +250,20 @@ int first() {
         std::map<unsigned long long, unsigned long long> hashSequence;
         while (stateToPulseStatsMap.find(hash) == stateToPulseStatsMap.end() && numCycles > 0) {
             Context context;
-            button->update(context);
 
-            std::set<Module*> modulesToUpdate;
-            do {
-                modulesToUpdate.clear();
-                while (context.activeWires.size() > 0) {
-                    auto wire = *context.activeWires.begin();
-                    context.activeWires.erase(wire);
-                    modulesToUpdate.insert(wire->nextConnector);
-                }
+            Pulse initialPulse;
+            initialPulse.type = PulseType::Low;
+            initialPulse.destination = "broadcaster";
+            context.pulseStats.lowPulseCount++;
+            context.activePulses.push(initialPulse);
 
-                for (auto& module : modulesToUpdate) {
-                    module->update(context);
-                }
-            } while (modulesToUpdate.size() > 0);
+            while (!context.activePulses.empty()) {
+                auto activePulse = context.activePulses.front();
+                context.activePulses.pop();
+                
+                auto module = modules[activePulse.destination];
+                module->update(context, activePulse);
+            }
 
             stateToPulseStatsMap[hash] = context.pulseStats;
             totalPulseStats.lowPulseCount += context.pulseStats.lowPulseCount;
