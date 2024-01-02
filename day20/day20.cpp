@@ -9,11 +9,16 @@
 
 struct Module;
 
+enum class Pulse {
+    None,
+    Low,
+    High,
+};
+
 struct Wire {
     Module* prevConnector = nullptr;
     Module* nextConnector = nullptr;
-    bool pulse = false;
-    bool active = false;
+    Pulse pulse = Pulse::None;
 };
 
 struct PulseStats {
@@ -43,18 +48,18 @@ struct FlipFlopModule : public Module {
 
     void update(Context& context) override {
         for (auto& input : inputs) {
-            if (input->active && !input->pulse) {
+            if (input->pulse == Pulse::Low) {
                 state = !state;
                 for (auto& output : outputs) {
-                    output->pulse = state;
-                    output->active = true;
-                    std::cout << "FlipFlop " << name << " to " << state << std::endl;
-                    std::cout << "Flipflop " << name << " sending " << (output->pulse ? "high" : "low") << " pulse to " << output->nextConnector->name << std::endl;
-                    if (output->pulse) {
+                    if (state) {
+                        output->pulse = Pulse::High;
                         context.pulseStats.highPulseCount++;
                     } else {
+                        output->pulse = Pulse::Low;
                         context.pulseStats.lowPulseCount++;
                     }
+                    //std::cout << "FlipFlop " << name << " to " << state << std::endl;
+                    //std::cout << "Flipflop " << name << " sending " << (output->pulse ? "high" : "low") << " pulse to " << output->nextConnector->name << std::endl;
                     context.activeWires.insert(output);
                 }
                 break;
@@ -62,7 +67,7 @@ struct FlipFlopModule : public Module {
         }
 
         for (auto& input : inputs) {
-            input->active = false;
+            input->pulse = Pulse::None;
         }
     }
 };
@@ -72,36 +77,39 @@ struct NandModule : public Module {
         this->name = name;
     }
 
-    void update(Context& context) override {
-        for (auto& input : inputs) {
-            if (!input->pulse) {
-                for (auto& output : outputs) {
-                    output->pulse = true;
-                    output->active = true;
+    std::vector<Pulse> memories;
 
-                    std::cout << "Nand " << name << " sending " << (output->pulse ? "high" : "low") << " pulse to " << output->nextConnector->name << std::endl;
+    void update(Context& context) override {
+        // first make sure memories are pre-allocated
+        if (memories.empty()) {
+            memories.resize(inputs.size());
+            memories.assign(inputs.size(), Pulse::Low);
+        }
+
+        for (int i = 0; i < inputs.size(); i++) {
+            if (inputs[i]->pulse != Pulse::None)
+                memories[i] = inputs[i]->pulse;
+        }
+
+        bool oneLow = false;
+        for (auto& pulse: memories) {
+            if (pulse == Pulse::Low) {
+                for (auto& output : outputs) {
+                    output->pulse = Pulse::High;
                     context.pulseStats.highPulseCount++;
                     context.activeWires.insert(output);
                 }
-
-                for (auto& input : inputs) {
-                    input->active = false;
-                }
-                return;
+                oneLow = true;
+                break;
             }
         }
 
-        for (auto& input : inputs) {
-            input->active = false;
-        }
-
-        for (auto& output : outputs) {
-            output->active = true;
-            output->pulse = false;
-
-            std::cout << "Nand " << name << " sending " << (output->pulse ? "high" : "low") << " pulse to " << output->nextConnector->name << std::endl;
-            context.pulseStats.lowPulseCount++;
-            context.activeWires.insert(output);
+        if (!oneLow) {
+            for (auto& output : outputs) {
+                output->pulse = Pulse::Low;
+                context.pulseStats.lowPulseCount++;
+                context.activeWires.insert(output);
+            }
         }
     }
 };
@@ -113,16 +121,14 @@ struct BroadcastModule : public Module {
 
     void update(Context& context) override {
         for (auto& output : outputs) {
-            output->pulse = false;
-            output->active = true;
-
-            std::cout << "Broadcast " << name << " sending " << (output->pulse ? "high" : "low") << " pulse to " << output->nextConnector->name << std::endl;
+            output->pulse = Pulse::Low;
+            //std::cout << "Broadcast " << name << " sending " << (output->pulse ? "high" : "low") << " pulse to " << output->nextConnector->name << std::endl;
             context.pulseStats.lowPulseCount++;
             context.activeWires.insert(output);
         }
 
         for (auto& input : inputs) {
-            input->active = false;
+            input->pulse = Pulse::None;
         }
     }
 };
@@ -133,10 +139,9 @@ struct ButtonModule : public Module {
     }
 
     void update(Context& context) override {
-        outputs[0]->pulse = false;
-        outputs[0]->active = true;
+        outputs[0]->pulse = Pulse::Low;
 
-        std::cout << "Button " << name << " sending " << (outputs[0]->pulse ? "high" : "low") << " pulse to " << outputs[0]->nextConnector->name << std::endl;
+        //std::cout << "Button " << name << " sending " << (outputs[0]->pulse ? "high" : "low") << " pulse to " << outputs[0]->nextConnector->name << std::endl;
         context.pulseStats.lowPulseCount++;
         context.activeWires.insert(outputs[0]);
     }
@@ -149,7 +154,7 @@ struct OutputModule : public Module {
 
     void update(Context& context) override {
         for (auto& input : inputs) {
-            input->active = false;
+            input->pulse = Pulse::None;
         }
     }
 };
@@ -176,7 +181,6 @@ int first() {
     std::map<std::string, Module*> modules;
 
     if (newfile.is_open()) {
-        
         std::string line;
         while (getline(newfile, line)) {
             /* 
@@ -272,7 +276,7 @@ int first() {
                 while (context.activeWires.size() > 0) {
                     auto wire = *context.activeWires.begin();
                     context.activeWires.erase(wire);
-                    modulesToUpdate.insert(wire->nextConnector);                    
+                    modulesToUpdate.insert(wire->nextConnector);
                 }
 
                 for (auto& module : modulesToUpdate) {
