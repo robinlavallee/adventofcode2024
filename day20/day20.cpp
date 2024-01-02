@@ -111,6 +111,10 @@ struct NandModule : public Module {
                 context.activeWires.insert(output);
             }
         }
+
+        for (auto& input : inputs) {
+            input->pulse = Pulse::None;
+        }
     }
 };
 
