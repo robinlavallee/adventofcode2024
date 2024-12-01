@@ -34,7 +34,7 @@ record parse_record(std::string line) {
         } else if (color == "green") {
             r.green = std::stoi(number);
         }
-        
+
         if (separator + 2 >= line.length()) {
             break;
         }

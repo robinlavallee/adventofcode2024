@@ -140,7 +140,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="adventofcode2023.cpp" />
+    <ClCompile Include="day1.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="day1_input.txt" />
