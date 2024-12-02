@@ -6,183 +6,119 @@
 #include <list>
 #include <vector>
 
-
-struct record {
-    int blue = 0;
-    int red = 0;
-    int green = 0;
-};
-
-using game = std::list<record>;
-
-// parse a string like 1 red, 2 green, 6 blue
-record parse_record(std::string line) {
-    record r;
-    int separator = line.find(", ");
-    if (separator == std::string::npos) {
-        separator = line.length();
-    }
-    std::string part = line.substr(0, separator);
-    while (part.length() > 0) {
-        int space = part.find(" ");
-        std::string number = part.substr(0, space);
-        std::string color = part.substr(space + 1);
-        if (color == "blue") {
-            r.blue = std::stoi(number);
-        } else if (color == "red") {
-            r.red = std::stoi(number);
-        } else if (color == "green") {
-            r.green = std::stoi(number);
-        }
-
-        if (separator + 2 >= line.length()) {
-            break;
-        }
-        line = line.substr(separator + 2);
-
-        separator = line.find(", ");
-        if (separator == std::string::npos) {
-            separator = line.length();
-        }
-        part = line.substr(0, separator);
-    }
-
-    return r;
-}
-
-
 int first() {
     std::fstream newfile;
     newfile.open("input.txt", std::ios::in);
     if (newfile.is_open()) {
         std::string line;
 
-        std::vector<game> games;
-
-        while(getline(newfile, line)) {
-            // parse line in the following format: Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
-            game g;
-
-            // find the colon and split string
-            int colon = line.find(": ");
-            std::string game = line.substr(0, colon);
-            std::string rest = line.substr(colon + 2); //  3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
-
-            // split the string by each semi-colon part
-            int separator = rest.find(";");
-            if (separator == std::string::npos) {
-                separator = rest.length();
-            }
-            
-            std::string part = rest.substr(0, separator); // 3 blue, 4 red
-            while (part.length() > 0) {
-                record r = parse_record(part);
-                g.push_back(r);
-
-                if (separator + 2 >= rest.length()) {
-                    break;
+        int numSafe = 0;
+        while (getline(newfile, line)) {
+            // convert string to integer list
+            // 34 40 23 43 56
+            std::vector<int> nums;
+            size_t pos = 0;
+            while (line.size() > 0) {
+                auto pos = line.find(" ");
+                if (pos == std::string::npos) {
+                    pos = line.size();
                 }
-                rest = rest.substr(separator + 2); // 1 red, 2 green, 6 blue; 2 green
-                
-                separator = rest.find("; ");
-                if (separator == std::string::npos) {
-                    separator = line.length();
-                } 
-                part = rest.substr(0, separator);
+
+                nums.push_back(std::stoi(line.substr(0, pos)));
+                line.erase(0, pos + 1);
             }
 
-            games.push_back(g);
-        }
+            // check the distance between each number, make sure it's 1-3
+            bool isIncrease = nums[1] - nums[0] > 0;
 
-        int maxRed = 12;
-        int maxGreen = 13;
-        int maxBlue = 14;
-
-        int sumPossible = 0;
-
-        for (int i = 0; i < games.size(); i++) {
-            bool possible = true;
-            for (auto& record : games[i]) {
-                if (record.red > maxRed || record.green > maxGreen || record.blue > maxBlue) {
-                    possible = false;
-                    break;
+            bool isSafe = true;
+            for (int i = 0; i < nums.size() - 1; ++i) {
+                if (isIncrease) {
+                    if (nums[i + 1] - nums[i] > 3 || nums[i + 1] - nums[i] < 1) {
+                        isSafe = false;
+                        break;
+                    }
+                } else {
+                    if (nums[i] - nums[i + 1] > 3 || nums[i] - nums[i + 1] < 1) {
+                        isSafe = false;
+                        break;
+                    } 
                 }
             }
 
-            if (possible) {
-                sumPossible += (i + 1); // sum of IDs
+            if (isSafe) {
+                numSafe++;
             }
         }
 
-        printf("Sum: %d\n", sumPossible);
-
+        std::cout << "Number of safe numbers: " << numSafe << std::endl;
     }
     
     return 0;
 }
 
+bool isSafe(const std::vector<int>& nums) {
+    // check the distance between each number, make sure it's 1-3
+    bool isIncrease = nums[1] - nums[0] > 0;
+
+    bool isSafe = true;
+    for (int i = 0; i < nums.size() - 1; ++i) {
+        if (isIncrease) {
+            if (nums[i + 1] - nums[i] > 3 || nums[i + 1] - nums[i] < 1) {
+                isSafe = false;
+                break;
+            }
+        } else {
+            if (nums[i] - nums[i + 1] > 3 || nums[i] - nums[i + 1] < 1) {
+                isSafe = false;
+                break;
+            } 
+        }
+    }
+
+    return isSafe;
+}
+
 int second() {
-    std::fstream newfile;
+std::fstream newfile;
     newfile.open("input.txt", std::ios::in);
     if (newfile.is_open()) {
         std::string line;
 
-        std::vector<game> games;
-
-        while(getline(newfile, line)) {
-            // parse line in the following format: Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
-            game g;
-
-            // find the colon and split string
-            int colon = line.find(": ");
-            std::string game = line.substr(0, colon);
-            std::string rest = line.substr(colon + 2); //  3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
-
-            // split the string by each semi-colon part
-            int separator = rest.find(";");
-            if (separator == std::string::npos) {
-                separator = rest.length();
-            }
-            
-            std::string part = rest.substr(0, separator); // 3 blue, 4 red
-            while (part.length() > 0) {
-                record r = parse_record(part);
-                g.push_back(r);
-
-                if (separator + 2 >= rest.length()) {
-                    break;
+        int numSafe = 0;
+        while (getline(newfile, line)) {
+            // convert string to integer list
+            // 34 40 23 43 56
+            std::vector<int> nums;
+            size_t pos = 0;
+            while (line.size() > 0) {
+                auto pos = line.find(" ");
+                if (pos == std::string::npos) {
+                    pos = line.size();
                 }
-                rest = rest.substr(separator + 2); // 1 red, 2 green, 6 blue; 2 green
-                
-                separator = rest.find("; ");
-                if (separator == std::string::npos) {
-                    separator = line.length();
-                } 
-                part = rest.substr(0, separator);
+
+                nums.push_back(std::stoi(line.substr(0, pos)));
+                line.erase(0, pos + 1);
             }
 
-            games.push_back(g);
-        }
-
-        int sumPossible = 0;
-
-        for (int i = 0; i < games.size(); i++) {
-            int power = 0;
-            int maxRed = 0;
-            int maxGreen = 0;
-            int maxBlue = 0;
-
-            for (auto& record : games[i]) {
-                maxRed = std::max(maxRed, record.red);
-                maxGreen = std::max(maxGreen, record.green);
-                maxBlue = std::max(maxBlue, record.blue);
+            for (int i = nums.size(); i >= 0; i--) {
+                if (i == nums.size()) {
+                    if (isSafe(nums)) {
+                        numSafe++;
+                        break;
+                    }
+                } else {
+                    auto newNums = nums;
+                    newNums.erase(newNums.begin() + i);
+                    if (isSafe(newNums)) {
+                        numSafe++;
+                        break;
+                    }
+                }
             }
-            power = maxRed * maxGreen * maxBlue;
-            sumPossible += power;
         }
 
-        printf("Sum: %d\n", sumPossible);
-
+        std::cout << "Number of safe numbers: " << numSafe << std::endl;
     }
     return 0;
 }
