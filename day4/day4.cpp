@@ -22,69 +22,63 @@ int first() {
     std::fstream newfile;
     newfile.open("input.txt", std::ios::in);
     if (newfile.is_open()) {
-        /* format is
-Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
-Card 2: 13 32 20 16 61 | 61 30 68 82 17 32 24 19
-Card 3:  1 21 53 59 44 | 69 82 63 72 16 21 14  1
-Card 4: 41 92 73 84 69 | 59 84 76 51 58  5 54 83
-Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
-Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11        
-        */
-
-       // hardest is splitting everything up
-
+        std::vector<std::string> lines;
         std::string line;
-        int points = 0;
-        while (getline(newfile, line)) {
-            // parse line in the following format: 
-            
-            // remove double space if any
-            replace(line, "  ", " ");
-            line += " ";
-
-            // split line into cards
-            int separator = line.find(": ");
-            std::string card = line.substr(0, separator);
-            std::string rest = line.substr(separator + 2);
-
-            std::set<int> winningNumbers;
-
-            // split each number until you find a | character
-            separator = rest.find("| ");
-            std::string winningNumbersString = rest.substr(0, separator);
-            std::string rest2 = rest.substr(separator + 2);
-
-            // split by space for each number in the winning numbers
-            int space = winningNumbersString.find(" ");
-            while (space != std::string::npos) {
-                std::string number = winningNumbersString.substr(0, space);
-                winningNumbers.insert(std::stoi(number));
-                winningNumbersString = winningNumbersString.substr(space + 1);
-                space = winningNumbersString.find(" ");
-            }
-
-            // split by space for each number in the cards
-            space = rest2.find(" ");
-            int point = 0;
-            while (space != std::string::npos) {
-                std::string number = rest2.substr(0, space);
-                if (winningNumbers.find(std::stoi(number)) != winningNumbers.end()) {
-                    if (point == 0) {
-                        point = 1;
-                    } else {
-                        point *= 2;
-                    }
-                }
-                rest2 = rest2.substr(space + 1);
-                space = rest2.find(" ");
-            }
-
-            points += point;
+        while (std::getline(newfile, line)) {
+            lines.push_back(line);
         }
 
-        std::cout << points << std::endl;
-    }
+        int numXmas = 0;
+        
+        for (int i = 0; i < lines.size(); i++) {
+            for (int j = 0; j < lines[i].size(); j++) {
 
+                // check up
+                if (i >= 3 && lines[i][j] == 'X' && lines[i - 1][j] == 'M' && lines[i - 2][j] == 'A' && lines[i - 3][j] == 'S') {
+                    numXmas++;
+                }
+
+                // check down
+                if (i <= lines.size() - 4 && lines[i][j] == 'X' && lines[i + 1][j] == 'M' && lines[i + 2][j] == 'A' && lines[i + 3][j] == 'S') {
+                    numXmas++;
+                }
+
+                // check left
+                if (j >= 3 && lines[i][j] == 'X' && lines[i][j - 1] == 'M' && lines[i][j - 2] == 'A' && lines[i][j - 3] == 'S') {
+                    numXmas++;
+                }
+
+                // check right
+                if (j <= lines[i].size() - 4 && lines[i][j] == 'X' && lines[i][j + 1] == 'M' && lines[i][j + 2] == 'A' && lines[i][j + 3] == 'S') {
+                    numXmas++;
+                }
+
+                // check up left
+                if (i >= 3 && j >= 3 && lines[i][j] == 'X' && lines[i - 1][j - 1] == 'M' && lines[i - 2][j - 2] == 'A' && lines[i - 3][j - 3] == 'S') {
+                    numXmas++;
+                }
+
+                // check up right
+                if (i >= 3 && j <= lines[i].size() - 4 && lines[i][j] == 'X' && lines[i - 1][j + 1] == 'M' && lines[i - 2][j + 2] == 'A' && lines[i - 3][j + 3] == 'S') {
+                    numXmas++;
+                }
+
+                // check down left
+                if (i <= lines.size() - 4 && j >= 3 && lines[i][j] == 'X' && lines[i + 1][j - 1] == 'M' && lines[i + 2][j - 2] == 'A' && lines[i + 3][j - 3] == 'S') {
+                    numXmas++;
+                }
+
+                // check down right
+                if (i <= lines.size() - 4 && j <= lines[i].size() - 4 && lines[i][j] == 'X' && lines[i + 1][j + 1] == 'M' && lines[i + 2][j + 2] == 'A' && lines[i + 3][j + 3] == 'S') {
+                    numXmas++;
+                }
+            }
+        }
+
+        std::cout << "Num Xmas: " << numXmas << std::endl;
+
+
+    }   
     return 0;
 }
 
@@ -92,84 +86,66 @@ int second() {
     std::fstream newfile;
     newfile.open("input.txt", std::ios::in);
     if (newfile.is_open()) {
-        /* format is
-Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
-Card 2: 13 32 20 16 61 | 61 30 68 82 17 32 24 19
-Card 3:  1 21 53 59 44 | 69 82 63 72 16 21 14  1
-Card 4: 41 92 73 84 69 | 59 84 76 51 58  5 54 83
-Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
-Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11
-        */
-
-        // hardest is splitting everything up
-
+        std::vector<std::string> lines;
         std::string line;
-        std::vector<int> numMatches;
+        while (std::getline(newfile, line)) {
+            lines.push_back(line);
+        }
 
-        while (getline(newfile, line)) {
-            // parse line in the following format: 
-
-            // remove double space if any
-            replace(line, "  ", " ");
-            line += " ";
-
-            // split line into cards
-            int separator = line.find(": ");
-            std::string card = line.substr(0, separator);
-            std::string rest = line.substr(separator + 2);
-
-            std::set<int> winningNumbers;
-
-            // split each number until you find a | character
-            separator = rest.find("| ");
-            std::string winningNumbersString = rest.substr(0, separator);
-            std::string rest2 = rest.substr(separator + 2);
-
-            // split by space for each number in the winning numbers
-            int space = winningNumbersString.find(" ");
-            while (space != std::string::npos) {
-                std::string number = winningNumbersString.substr(0, space);
-                winningNumbers.insert(std::stoi(number));
-                winningNumbersString = winningNumbersString.substr(space + 1);
-                space = winningNumbersString.find(" ");
+        std::vector<std::map<std::pair<int, int>, char>> pattern = 
+        {
+            {
+                {{0, 0}, 'M'},
+                {{0, 2}, 'S'},
+                {{1, 1}, 'A'},
+                {{2, 0}, 'M'},
+                {{2, 2}, 'S'}
+            },
+            {
+                {{0, 0}, 'S'},
+                {{0, 2}, 'S'},
+                {{1, 1}, 'A'},
+                {{2, 0}, 'M'},
+                {{2, 2}, 'M'}
+            },
+            {
+                {{0, 0}, 'S'},
+                {{0, 2}, 'M'},
+                {{1, 1}, 'A'},
+                {{2, 0}, 'S'},
+                {{2, 2}, 'M'}
+            },
+            {
+                {{0, 0}, 'M'},
+                {{0, 2}, 'M'},
+                {{1, 1}, 'A'},
+                {{2, 0}, 'S'},
+                {{2, 2}, 'S'}
             }
+        };
 
-            // split by space for each number in the cards
-            space = rest2.find(" ");
-            int matches = 0;
-            while (space != std::string::npos) {
-                std::string number = rest2.substr(0, space);
-                if (winningNumbers.find(std::stoi(number)) != winningNumbers.end()) {
-                    matches++;
+        int numPatternsFound = 0;
+        for (int i = 0; i < lines.size() - 2; i++) {
+            for (int j = 0; j < lines[i].size() - 2; j++) {
+                for (int k = 0; k < pattern.size(); k++) {
+                    bool valid = true;
+                    for (auto it = pattern[k].begin(); it != pattern[k].end(); it++) {
+                        if (lines[i + it->first.first][j + it->first.second] != it->second) {
+                            valid = false;
+                            break;
+                        }
+                    }
+
+                    if (valid) {
+                        std::cout << "Pattern Found at coordinates: (" << i << ", " << j << ")" << std::endl;
+                        numPatternsFound++;
+                    }
                 }
-                rest2 = rest2.substr(space + 1);
-                space = rest2.find(" ");
-            }
-
-            numMatches.push_back(matches);
-        }
-
-        std::vector<int> numCards;
-        numCards.resize(numMatches.size());
-        for (int i = 0; i < numCards.size(); i++) {
-            numCards[i] = 1;
-        }
-
-        // now loop and make duplicate !!
-        for (int i = 0; i < numMatches.size(); i++) {
-            for (int k = 1; k <= numMatches[i]; k++) {
-                numCards[i+k] += numCards[i]; // each instance of the card will add to the next ones
             }
         }
 
-        int total = 0;
-        for (int i = 0; i < numCards.size(); i++) {
-            total += numCards[i];
-        }
-
-        std::cout << total << std::endl;
+        std::cout << "Num Patterns Found: " << numPatternsFound << std::endl;        
     }
-
 
     return 0;
 }
