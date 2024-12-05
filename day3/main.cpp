@@ -6,113 +6,24 @@
 #include <list>
 #include <vector>
 #include <set>
+#include <regex>
 
 int first() {
     std::fstream newfile;
     newfile.open("input.txt", std::ios::in);
     if (newfile.is_open()) {
-        /* Format is
-            467..114..
-            ...*......
-            ..35..633.
-            ......#...
-            617*......
-            .....+.58.
-            ..592.....
-            ......755.
-            ...$.*....
-            .664.598..        
-        */
-
         std::string line;
-        std::vector<std::string> charmap;
-
-        while (getline(newfile, line)) {
-            charmap.push_back(line);
-        }
-
-        // start parsing line by line for a sequence of digits, when you have one, store it a map
-        struct number {
-            int xStart;
-            int xEnd;
-            int value;
-        };
-
-        std::vector<std::vector<number>> numbers;
-
-        for (int y = 0; y < charmap.size(); y++) {
-            std::string row = charmap[y];
-            std::vector<number> rowNumbers;
-            int x = 0;
-            while (x < row.length()) {
-                if (row[x] >= '0' && row[x] <= '9') {
-                    number n;
-                    std::string numberString = "";
-                    n.xStart = x;
-                    numberString = row[x];
-                    x++;
-                    while (x < row.length() && row[x] >= '0' && row[x] <= '9') {
-                        numberString += row[x];
-                        x++;
-                    }
-                    n.xEnd = x - 1;
-                    n.value = std::stoi(numberString);
-                    rowNumbers.push_back(n);
-                }
-                x++;
+        long long sum = 0;
+        while (std::getline(newfile, line)) {
+            std::regex re("mul\\((\\d{1,3}),(\\d{1,3})\\)");
+            std::smatch match;
+            std::string::const_iterator searchStart( line.cbegin() );
+            while ( std::regex_search( searchStart, line.cend(), match, re ) ) {
+                std::cout << "Match: " << match[0] << std::endl;
+                searchStart = match.suffix().first;
+                long long mul = std::stoll(match[1]) * std::stoll(match[2]);
+                sum += mul;
             }
-            numbers.push_back(rowNumbers);
-        }
-
-        std::vector<int> parts;
-
-        // loop through the numbers
-        for (int y = 0; y < numbers.size(); y++) {
-            std::vector<number> rowNumbers = numbers[y];
-            for (int x = 0; x < rowNumbers.size(); x++) {
-                number n = rowNumbers[x];
-
-                // now check if there is a symbol near the number itself
-                for (int i = n.xStart; i <= n.xEnd; i++) {
-                    std::vector<std::pair<int, int>> directions = {
-                        {-1, -1},
-                        {-1, 0},
-                        {-1, 1},
-                        {0, -1},
-                        {0, 1},
-                        {1, -1},
-                        {1, 0},
-                        {1, 1}
-                    };
-
-                    bool foundSymbol = false;
-
-                    for (auto& direction : directions) {
-                        int checkX = i + direction.first;
-                        int checkY = y + direction.second;
-
-                        if (checkX >= 0 && checkX < charmap[y].length() && checkY >= 0 && checkY < charmap.size()) {
-                            if (charmap[checkY][checkX] != '.' && (charmap[checkY][checkX] < '0' || charmap[checkY][checkX] > '9')) {
-                                std::cout << "Number " << n.value << " at " << n.xStart << ", " << n.xEnd << " has a symbol at " << x << ", " << y << std::endl;
-                                parts.push_back(n.value);
-                                foundSymbol = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (foundSymbol) {
-                        break;
-                    }
-                }
-
-                //std::cout << "Number " << n.value << " at " << n.xStart << ", " << n.xEnd << std::endl;
-            }
-        }
-
-        int sum = 0;
-        for (auto& part : parts) {
-            sum += part;
         }
 
         std::cout << "Sum: " << sum << std::endl;
@@ -125,106 +36,41 @@ int second() {
     std::fstream newfile;
     newfile.open("input.txt", std::ios::in);
     if (newfile.is_open()) {
-        /* Format is
-            467..114..
-            ...*......
-            ..35..633.
-            ......#...
-            617*......
-            .....+.58.
-            ..592.....
-            ......755.
-            ...$.*....
-            .664.598..
-        */
-
         std::string line;
-        std::vector<std::string> charmap;
+        long long sum = 0;
+        bool enabled = true;
+        while (std::getline(newfile, line)) {
+            std::regex mul_re("mul\\((\\d{1,3}),(\\d{1,3})\\)");
+            std::regex do_re("do\\(\\)");
+            std::regex donot_re("don't\\(\\)");
+            std::smatch mul_match, do_match, donot_match;
+            std::string::const_iterator searchStart( line.cbegin() );
 
-        while (getline(newfile, line)) {
-            charmap.push_back(line);
-        }
+            while (1) {
+                std::regex_search( searchStart, line.cend(), mul_match, mul_re );
+                std::regex_search( searchStart, line.cend(), do_match, do_re );
+                std::regex_search( searchStart, line.cend(), donot_match, donot_re );
 
-        // start parsing line by line for a sequence of digits, when you have one, store it a map
-        struct number {
-            int xStart;
-            int xEnd;
-            int value;
-        };
-
-        std::vector<std::vector<number>> numbers;
-
-        for (int y = 0; y < charmap.size(); y++) {
-            std::string row = charmap[y];
-            std::vector<number> rowNumbers;
-            int x = 0;
-            while (x < row.length()) {
-                if (row[x] >= '0' && row[x] <= '9') {
-                    number n;
-                    std::string numberString = "";
-                    n.xStart = x;
-                    numberString = row[x];
-                    x++;
-                    while (x < row.length() && row[x] >= '0' && row[x] <= '9') {
-                        numberString += row[x];
-                        x++;
-                    }
-                    n.xEnd = x - 1;
-                    n.value = std::stoi(numberString);
-                    rowNumbers.push_back(n);
+                if (mul_match.empty() && do_match.empty() && donot_match.empty()) {
+                    break;
                 }
-                x++;
-            }
-            numbers.push_back(rowNumbers);
-        }
 
-        // find all the 'gears' that are connected to only TWO numbers
-        int sum = 0;
-        std::vector<std::pair<int, int>> gears;
-        for (int y = 0; y < charmap.size(); y++) {
-            for (int x = 0; x < charmap[y].size(); ++x) {
-                if (charmap[y][x] == '*') {
-                    // it may be a gear if it is connected to only two numbers
-                    // one number is wrong, more than 2 numbers is wrong
-                    // the same number twice is fine
-                    std::set<int> connectedNumbersSet;
-
-                    std::vector<std::pair<int, int>> directions = {
-                        {-1, -1},
-                        {-1, 0},
-                        {-1, 1},
-                        {0, -1},
-                        {0, 1},
-                        {1, -1},
-                        {1, 0},
-                        {1, 1}
-                    };
-
-                    for (auto& direction : directions) {
-                        int checkX = x + direction.first;
-                        int checkY = y + direction.second;
-
-                        // now loop through all the numbers and see if it is connected to one
-                        const auto& rowNumber = numbers[checkY];
-                        for (auto& number : rowNumber) {
-                            if (checkX >= number.xStart && checkX <= number.xEnd) {
-                                connectedNumbersSet.insert(number.value);
-                                break;
-                            }
-                        }
+                // check the closest match
+                if (!mul_match.empty() && (do_match.empty() || mul_match.position() < do_match.position()) && (donot_match.empty() || mul_match.position() < donot_match.position())) {
+                    searchStart = mul_match.suffix().first;
+                    if (enabled) {
+                        long long mul = std::stoll(mul_match[1]) * std::stoll(mul_match[2]);
+                        sum += mul;
                     }
-
-                    if (connectedNumbersSet.size() == 2) {
-                        // multiply the two numbers
-                        int product = 1;
-                        for (auto& number : connectedNumbersSet) {
-                            product *= number;
-                        }
-                        sum += product;
-                    }
+                } else if (!do_match.empty() && (mul_match.empty() || do_match.position() < mul_match.position()) && (donot_match.empty() || do_match.position() < donot_match.position())) {
+                    searchStart = do_match.suffix().first;
+                    enabled = true;
+                } else if (!donot_match.empty() && (mul_match.empty() || donot_match.position() < mul_match.position()) && (do_match.empty() || donot_match.position() < do_match.position())) {
+                    searchStart = donot_match.suffix().first;
+                    enabled = false;
                 }
             }
-        }        
+        }
 
         std::cout << "Sum: " << sum << std::endl;
     }
